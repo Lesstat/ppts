@@ -1,5 +1,5 @@
 use edge::{Edge, HalfEdge};
-use node::Node;
+pub use node::Node;
 use path::Path;
 
 use crate::graph::path::PathSplit;

@@ -1,5 +1,5 @@
 [package]
-name = "preference-Splitting"
+name = "preference-splitting"
 version = "0.1.0"
 authors = ["Patrick Singer", "Florian Barth"]
 edition = "2018"
