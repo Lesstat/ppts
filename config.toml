@@ -1,6 +1,0 @@
-port = "8000"
-database_path = "database"
-
-# a change here requires a change of the edge_cost_dimension in main.rs
-edge_cost_tags = ["Distance", "Unit", "Height", "UnsuitDist"]
-initial_pref = [1.0, 0.0, 0.0, 0.0]

@@ -1,9 +1,8 @@
 use crate::graph::Graph;
-use crate::helpers::{add_edge_costs, Coordinate, Costs, Preference};
+use crate::helpers::{add_edge_costs, Costs, Preference};
 use crate::EDGE_COST_DIMENSION;
-use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug)]
 pub struct PathSplit {
     pub cuts: Vec<usize>,
     pub alphas: Vec<Preference>,
@@ -19,13 +18,11 @@ impl PathSplit {
     }
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone)]
+#[derive(Debug, Clone)]
 pub struct Path {
     pub id: usize,
     pub nodes: Vec<usize>,
     pub edges: Vec<usize>,
-    pub waypoints: Vec<Coordinate>,
-    pub coordinates: Vec<Coordinate>,
     pub user_split: PathSplit,
     pub algo_split: Option<PathSplit>,
     pub total_dimension_costs: Costs,

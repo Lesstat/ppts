@@ -1,13 +1,9 @@
-use std::fs::File;
-use std::io::BufRead;
-use std::io::BufReader;
-
 use edge::{Edge, HalfEdge};
 use node::Node;
 use path::Path;
 
 use crate::graph::path::PathSplit;
-use crate::helpers::{Coordinate, Preference};
+use crate::helpers::Preference;
 use crate::lp::PreferenceEstimator;
 use crate::EDGE_COST_DIMENSION;
 
@@ -27,7 +23,7 @@ pub struct Graph {
 }
 
 impl Graph {
-    fn new(mut nodes: Vec<Node>, mut edges: Vec<Edge>) -> Graph {
+    pub fn new(mut nodes: Vec<Node>, mut edges: Vec<Edge>) -> Graph {
         println!("Constructing graph...");
         let mut offsets_out: Vec<usize> = vec![0; nodes.len() + 1];
         let mut offsets_in: Vec<usize> = vec![0; nodes.len() + 1];
@@ -75,19 +71,6 @@ impl Graph {
         }
     }
 
-    pub fn find_shortest_path_alt(
-        &self,
-        id: usize,
-        include: Vec<Coordinate>,
-        alpha: Preference,
-    ) -> Option<Path> {
-        let include = include
-            .iter()
-            .map(|x| self.find_closest_node(x).id)
-            .collect();
-        self.find_shortest_path(id, include, alpha)
-    }
-
     pub fn find_shortest_path(
         &self,
         id: usize,
@@ -114,15 +97,10 @@ impl Graph {
                 .collect();
             nodes.push(*include.last().unwrap());
 
-            let coordinates = nodes.iter().map(|id| self.nodes[*id].location).collect();
-            let waypoints = include.iter().map(|id| self.nodes[*id].location).collect();
-
             return Some(Path {
                 id,
                 nodes,
                 edges,
-                coordinates,
-                waypoints,
                 user_split: PathSplit {
                     cuts,
                     alphas: vec![alpha],
@@ -177,13 +155,6 @@ impl Graph {
         println!("=== Found Preference ===");
     }
 
-    pub fn find_closest_node(&self, point: &Coordinate) -> &Node {
-        self.nodes
-            .iter()
-            .min_by_key(|node| point.distance_to(&node.location))
-            .expect("The graph has no nodes!")
-    }
-
     fn get_ch_edges_out(&self, node_id: usize) -> &[HalfEdge] {
         &self.half_edges_out[self.offsets_out[node_id]..self.offsets_out[node_id + 1]]
     }
@@ -199,85 +170,5 @@ impl Graph {
             return first;
         }
         vec![edge]
-    }
-}
-
-pub fn parse_graph_file(file_path: &str) -> Result<Graph, Box<dyn std::error::Error>> {
-    println!("Parsing graph...");
-    let mut nodes: Vec<Node> = Vec::new();
-    let mut edges: Vec<Edge> = Vec::new();
-    let file = File::open(file_path)?;
-    let reader = BufReader::new(file);
-    let mut lines = reader.lines();
-    for _i in 0..4 {
-        // comments and blanks
-        lines.next();
-    }
-    let cost_dim: usize = lines.next().expect("No edge cost dim given")?.parse()?;
-    assert_eq!(EDGE_COST_DIMENSION, cost_dim);
-    let num_of_nodes = lines
-        .next()
-        .expect("Number of nodes not present in file")?
-        .parse()?;
-    let num_of_edges = lines
-        .next()
-        .expect("Number of edges not present in file")?
-        .parse()?;
-
-    let mut parsed_nodes: usize = 0;
-    let mut parsed_edges: usize = 0;
-    while let Some(Ok(line)) = lines.next() {
-        let tokens: Vec<&str> = line.split_whitespace().collect();
-        if tokens[0] == "#" || tokens[0] == "\n" {
-            continue;
-        }
-        if parsed_nodes < num_of_nodes {
-            nodes.push(Node::new(
-                tokens[0].parse()?,
-                tokens[2].parse()?,
-                tokens[3].parse()?,
-                tokens[4].parse()?,
-                tokens[5].parse()?,
-            ));
-            parsed_nodes += 1;
-        } else if parsed_edges < num_of_edges {
-            let replaced_edges = if tokens[tokens.len() - 2] == "-1" {
-                None
-            } else {
-                Some((
-                    tokens[tokens.len() - 2].parse()?,
-                    tokens[tokens.len() - 1].parse()?,
-                ))
-            };
-            edges.push(Edge::new(
-                parsed_edges,
-                tokens[0].parse()?,
-                tokens[1].parse()?,
-                edge::parse_costs(&tokens[2..tokens.len() - 2]),
-                replaced_edges,
-            ));
-            parsed_edges += 1;
-        } else {
-            panic!("Something doesn't add up with the amount of nodes and edges in graph file");
-        }
-    }
-    Ok(Graph::new(nodes, edges))
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn graph_parsing() {
-        let result = parse_graph_file("./src/test_graphs/testGraph");
-        let graph = result.unwrap();
-        assert_eq!(12, graph.nodes.len());
-        assert_eq!(18, graph.edges.len());
-
-        let exp_offsets_out: Vec<usize> = vec![0, 0, 2, 6, 7, 9, 10, 12, 13, 15, 17, 18, 18];
-        let exp_offsets_in: Vec<usize> = vec![0, 1, 2, 3, 4, 6, 8, 11, 12, 14, 16, 18, 18];
-        assert_eq!(exp_offsets_out, graph.offsets_out);
-        assert_eq!(exp_offsets_in, graph.offsets_in);
     }
 }

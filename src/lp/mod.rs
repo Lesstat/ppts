@@ -3,7 +3,6 @@ use lp_modeler::problem::{LpObjective, LpProblem};
 use lp_modeler::solvers::{GlpkSolver, SolverTrait};
 use lp_modeler::variables::{lp_sum, LpContinuous, LpExpression};
 
-use crate::config::get_config;
 use crate::graph::path::Path;
 use crate::graph::Graph;
 use crate::helpers::{costs_by_alpha, Preference};
@@ -23,7 +22,7 @@ impl<'a> PreferenceEstimator<'a> {
 
         // Variables
         let mut variables = Vec::new();
-        for tag in get_config().edge_cost_tags() {
+        for tag in &["a", "b", "c"] {
             variables.push(LpContinuous::new(tag));
         }
         let deltas = Vec::new();
@@ -167,7 +166,7 @@ impl<'a> PreferenceEstimator<'a> {
                             all_zero = false;
                         }
                         // The order of variables in the HashMap is not fixed
-                        for (index, tag) in get_config().edge_cost_tags().iter().enumerate() {
+                        for (index, tag) in ["a", "b", "c"].iter().enumerate() {
                             if name == tag {
                                 alpha[index] = f64::from(*value);
                                 break;

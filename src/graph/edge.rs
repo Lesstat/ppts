@@ -2,14 +2,6 @@ use crate::helpers::Costs;
 
 use super::EDGE_COST_DIMENSION;
 
-pub fn parse_costs(tokens: &[&str]) -> Costs {
-    let mut edge_costs: Costs = [0.0; EDGE_COST_DIMENSION];
-    for (index, token) in tokens.iter().enumerate() {
-        edge_costs[index] = token.parse().unwrap();
-    }
-    edge_costs
-}
-
 #[derive(Debug)]
 pub struct Edge {
     pub id: usize,
