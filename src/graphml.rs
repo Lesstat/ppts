@@ -3,8 +3,9 @@ use std::io::Read;
 use std::path::Path;
 
 use std::collections::HashMap;
+use std::convert::TryInto;
 
-use crate::graph::{Graph, Node};
+use crate::graph::{Edge, Graph, Node};
 
 use roxmltree::Document;
 
@@ -96,7 +97,7 @@ pub fn read_graphml<P: AsRef<Path>>(file_path: P) -> Result<Graph, Box<dyn Error
 
                 match attribute.name {
                     "level" => ch_level = text.parse().expect("Could not parse ch level"),
-                    "name" => id = text.parse().expect("could not parse node name"),
+                    "id" => id = parse_node_id(text),
                     _ => (),
                 }
             }
@@ -104,12 +105,109 @@ pub fn read_graphml<P: AsRef<Path>>(file_path: P) -> Result<Graph, Box<dyn Error
         })
         .collect();
 
-    println!("prased {} nodes", nodes.len());
-    println!(
-        "max level was {}",
-        nodes.iter().map(|n| n.ch_level).max().unwrap()
-    );
-    let edges = vec![];
+    println!("parsed {} nodes", nodes.len());
+
+    let edge_lookup: HashMap<&str, usize> = doc
+        .root()
+        .descendants()
+        .filter(|n| n.has_tag_name("edge"))
+        .enumerate()
+        .map(|(id, edge)| {
+            for d in edge.descendants().filter(|d| d.has_tag_name("data")) {
+                let key = d.attribute("key").unwrap();
+                if "name" == keys[key].name {
+                    return (d.text().unwrap(), id);
+                }
+            }
+            panic!("could not find name for edge")
+        })
+        .collect();
+
+    println!("lookup table size: {}", edge_lookup.len());
+
+    let edges: Vec<Edge> = doc
+        .root()
+        .descendants()
+        .filter(|n| n.has_tag_name("edge"))
+        .enumerate()
+        .map(|(id, e)| parse_edge_from_xml(id, &e, &keys, &edge_lookup))
+        .collect();
+
+    println!("parsed {} edges", edges.len());
 
     Ok(Graph::new(nodes, edges))
+}
+
+fn parse_edge_from_xml<'a, 'input>(
+    id: usize,
+    node: &roxmltree::Node<'a, 'input>,
+    keys: &HashMap<&str, GraphmlAttribute>,
+    edge_lookup: &HashMap<&'a str, usize>,
+) -> Edge {
+    let mut costs = [0.0, 0.0, 0.0, 0.0];
+
+    let source_text = node
+        .attribute("source")
+        .expect("edge element has no source attribute.");
+    let target_text = node
+        .attribute("target")
+        .expect("edge element has no target attribute.");
+
+    let source = parse_node_id(source_text);
+    let target = parse_node_id(target_text);
+
+    let mut edge_a: i64 = -1;
+    let mut edge_b: i64 = -1;
+
+    let mut cost_idx = 0;
+    for d in node.descendants().filter(|n| n.has_tag_name("data")) {
+        let attr = &keys[d
+            .attribute("key")
+            .expect("data element has no key attribute")];
+
+        let text = if let Some(t) = d.text() {
+            t
+        } else {
+            continue;
+        };
+
+        match attr.name {
+            "edgeA" => {
+                edge_a = if text != "-1" {
+                    edge_lookup[text].try_into().unwrap()
+                } else {
+                    -1
+                }
+            }
+            "edgeB" => {
+                edge_b = if text != "-1" {
+                    edge_lookup[text].try_into().unwrap()
+                } else {
+                    -1
+                }
+            }
+            _ => (),
+        }
+
+        if let AttributeType::Double = attr.attribute_type {
+            costs[cost_idx] = text
+                .parse()
+                .unwrap_or_else(|t| panic!("could not parse text {} of {}", t, attr.name));
+            cost_idx += 1;
+        }
+    }
+
+    let skips = if edge_a >= 0 && edge_b >= 0 {
+        Some((edge_a as usize, edge_b as usize))
+    } else {
+        None
+    };
+
+    Edge::new(id, source, target, costs, skips)
+}
+
+fn parse_node_id(node_id: &str) -> usize {
+    let tail: String = node_id.chars().skip(1).collect();
+
+    tail.parse().expect("could not parse node id")
 }

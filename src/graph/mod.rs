@@ -1,4 +1,6 @@
-use edge::{Edge, HalfEdge};
+pub use edge::Edge;
+use edge::HalfEdge;
+
 pub use node::Node;
 use path::Path;
 
