@@ -1,4 +1,5 @@
 use std::error::Error;
+
 use std::io::Read;
 use std::path::Path;
 
@@ -27,6 +28,8 @@ struct GraphmlAttribute<'a> {
     attribute_type: AttributeType,
 }
 
+pub type EdgeLookup = HashMap<String, usize>;
+
 impl<'a> GraphmlAttribute<'a> {
     fn new(obj_type: &'a str, name: &'a str, attribute_type: &'a str) -> GraphmlAttribute<'a> {
         let obj_type = match obj_type {
@@ -51,14 +54,13 @@ impl<'a> GraphmlAttribute<'a> {
     }
 }
 
-pub fn read_graphml<P: AsRef<Path>>(file_path: P) -> Result<Graph, Box<dyn Error>> {
+pub fn read_graphml<P: AsRef<Path>>(file_path: P) -> Result<(Graph, EdgeLookup), Box<dyn Error>> {
     let mut contents = String::new();
 
     let file = std::fs::File::open(file_path)?;
     let mut file = std::io::BufReader::new(file);
 
     file.read_to_string(&mut contents)?;
-
     let doc = Document::parse(&contents)?;
 
     let keys: HashMap<&str, GraphmlAttribute> = doc
@@ -107,7 +109,7 @@ pub fn read_graphml<P: AsRef<Path>>(file_path: P) -> Result<Graph, Box<dyn Error
 
     println!("parsed {} nodes", nodes.len());
 
-    let edge_lookup: HashMap<&str, usize> = doc
+    let edge_lookup: EdgeLookup = doc
         .root()
         .descendants()
         .filter(|n| n.has_tag_name("edge"))
@@ -116,7 +118,7 @@ pub fn read_graphml<P: AsRef<Path>>(file_path: P) -> Result<Graph, Box<dyn Error
             for d in edge.descendants().filter(|d| d.has_tag_name("data")) {
                 let key = d.attribute("key").unwrap();
                 if "name" == keys[key].name {
-                    return (d.text().unwrap(), id);
+                    return (d.text().unwrap().to_owned(), id);
                 }
             }
             panic!("could not find name for edge")
@@ -135,16 +137,16 @@ pub fn read_graphml<P: AsRef<Path>>(file_path: P) -> Result<Graph, Box<dyn Error
 
     println!("parsed {} edges", edges.len());
 
-    Ok(Graph::new(nodes, edges))
+    Ok((Graph::new(nodes, edges), edge_lookup))
 }
 
 fn parse_edge_from_xml<'a, 'input>(
     id: usize,
     node: &roxmltree::Node<'a, 'input>,
     keys: &HashMap<&str, GraphmlAttribute>,
-    edge_lookup: &HashMap<&'a str, usize>,
+    edge_lookup: &EdgeLookup,
 ) -> Edge {
-    let mut costs = [0.0, 0.0, 0.0, 0.0];
+    let mut costs = [0.0; super::EDGE_COST_DIMENSION];
 
     let source_text = node
         .attribute("source")
