@@ -1,4 +1,5 @@
 use std::env;
+use std::fmt::{Display, Formatter};
 
 mod graph;
 mod graphml;
@@ -7,6 +8,21 @@ mod lp;
 mod trajectories;
 
 const EDGE_COST_DIMENSION: usize = 5;
+
+#[derive(Debug)]
+pub enum MyError {
+    InvalidTrajectories,
+}
+
+impl Display for MyError {
+    fn fmt(&self, f: &mut Formatter) -> Result<(), std::fmt::Error> {
+        match self {
+            MyError::InvalidTrajectories => write!(f, "Invalid Trajectories"),
+        }
+    }
+}
+
+impl std::error::Error for MyError {}
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args: Vec<String> = env::args().collect();
@@ -23,6 +39,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .all(|t| trajectories::check_trajectory(t, &graph, &edge_lookup))
     {
         println!("all {} trajectories seem valid :-)", trajectories.len());
+    } else {
+        println!("There are invalid trajectories :-(");
+        return Err(Box::new(MyError::InvalidTrajectories));
     }
 
     // let user_split = graph::path::PathSplit {
