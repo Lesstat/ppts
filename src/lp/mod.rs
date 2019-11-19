@@ -76,7 +76,7 @@ impl<'a> PreferenceEstimator<'a> {
         let mut alpha = [1.0 / EDGE_COST_DIMENSION as f64; EDGE_COST_DIMENSION];
         prev_alphas.push(alpha);
         loop {
-            println!("find shortest path");
+            // println!("find shortest path");
             let result = self
                 .graph
                 .find_shortest_path(
@@ -115,11 +115,11 @@ impl<'a> PreferenceEstimator<'a> {
                     }
                     alpha = result;
                     if prev_alphas.iter().any(|a| a == &alpha) {
-                        println!("looping alphas");
+                        // println!("looping alphas");
                         return Some(alpha);
                     }
                     prev_alphas.push(alpha);
-                    println!("alpha: {:?}", alpha);
+                    // println!("alpha: {:?}", alpha);
                 }
                 None => return None,
             }

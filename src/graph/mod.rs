@@ -123,21 +123,21 @@ impl Graph {
         let mut start: usize = 0;
 
         while start < path_length - 1 {
-            println!("start: {}, path_length: {}", start, path_length);
+            // println!("start: {}, path_length: {}", start, path_length);
             let mut low = start;
             let mut high = path_length;
             let mut best_pref = None;
             let mut best_cut = 0;
             loop {
                 let m = (low + high) / 2;
-                println!("searching for preference from {} to {} ", start, m);
+                // println!("searching for preference from {} to {} ", start, m);
                 let mut estimator = PreferenceEstimator::new(self);
                 let pref = estimator.calc_preference(&path, start, m);
                 if pref.is_some() {
                     low = m + 1;
                     best_pref = pref;
                     best_cut = m;
-                    println!("found pref {:?}", best_pref);
+                // println!("found pref {:?}", best_pref);
                 } else {
                     high = m;
                 }
@@ -148,7 +148,7 @@ impl Graph {
                 }
             }
             start = best_cut;
-            println!("start at end of loop: {}", start);
+            // println!("start at end of loop: {}", start);
         }
         let dimension_costs = Vec::new();
         let costs_by_alpha = Vec::new();
