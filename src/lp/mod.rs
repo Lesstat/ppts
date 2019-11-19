@@ -15,6 +15,7 @@ pub struct PreferenceEstimator<'a> {
     deltas: Vec<LpContinuous>,
     solver: GlpkSolver,
 }
+const ALPHABET: &str = "abcdefghijklmnopqrstuvwxyz";
 
 impl<'a> PreferenceEstimator<'a> {
     pub fn new(graph: &'a Graph) -> Self {
@@ -22,8 +23,9 @@ impl<'a> PreferenceEstimator<'a> {
 
         // Variables
         let mut variables = Vec::new();
-        for tag in &["a", "b", "c"] {
-            variables.push(LpContinuous::new(tag));
+
+        for tag in ALPHABET.chars().take(EDGE_COST_DIMENSION) {
+            variables.push(LpContinuous::new(&tag.to_string()));
         }
         let deltas = Vec::new();
 
