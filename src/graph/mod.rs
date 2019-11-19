@@ -122,7 +122,7 @@ impl Graph {
         let mut cuts = Vec::new();
         let mut alphas = Vec::new();
         let mut start: usize = 0;
-        while start <= path_length {
+        while start < path_length - 1 {
             let mut low = start;
             let mut high = path_length;
             let mut best_pref = None;
