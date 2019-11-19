@@ -34,7 +34,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let (graph, edge_lookup) = graphml::read_graphml(&args[1])?;
 
-    let trajectories = trajectories::read_trajectorries(&args[2])?;
+    let mut trajectories = trajectories::read_trajectorries(&args[2])?;
+
+    trajectories
+        .iter_mut()
+        .for_each(|t| t.filter_out_self_loops(&graph, &edge_lookup));
 
     if trajectories
         .iter()

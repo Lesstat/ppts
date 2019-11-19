@@ -168,8 +168,13 @@ impl<'a> PreferenceEstimator<'a> {
                             all_zero = false;
                         }
                         // The order of variables in the HashMap is not fixed
-                        for (index, tag) in ["a", "b", "c"].iter().enumerate() {
-                            if name == tag {
+                        for (index, tag) in ALPHABET
+                            .chars()
+                            .take(EDGE_COST_DIMENSION)
+                            .map(|c| c.to_string())
+                            .enumerate()
+                        {
+                            if name == &tag {
                                 alpha[index] = f64::from(*value);
                                 break;
                             }

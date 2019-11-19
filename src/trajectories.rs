@@ -77,4 +77,17 @@ impl Trajectory {
 
         path
     }
+
+    pub fn filter_out_self_loops(&mut self, graph: &Graph, edge_lookup: &EdgeLookup) {
+        self.path = self
+            .path
+            .iter()
+            .filter(|e| {
+                let e_idx = edge_lookup[&e.to_string()];
+                let edge = &graph.edges[e_idx];
+                edge.source_id != edge.target_id
+            })
+            .copied()
+            .collect();
+    }
 }
