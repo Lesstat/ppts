@@ -112,6 +112,7 @@ impl<'a> PreferenceEstimator<'a> {
                         return Some(alpha);
                     }
                     alpha = result;
+                    println!("alpha: {:?}", alpha);
                 }
                 None => return None,
             }
@@ -146,12 +147,12 @@ impl<'a> PreferenceEstimator<'a> {
         acc + LpExpression::ConsCont(self.variables[index].clone())
          * ((route.costs[index] - result.costs[index]) as f32)
     })
-        .le(0);
-    }
-    }
-        all_explained
-    }
-         */
+            .le(0);
+        }
+        }
+            all_explained
+        }
+             */
 
     fn solve_lp(&self) -> Option<Preference> {
         /*
