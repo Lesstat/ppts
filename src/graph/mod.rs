@@ -138,7 +138,7 @@ impl Graph {
                 } else {
                     high = m;
                 }
-                if low == high {
+                if low >= high {
                     alphas.push(best_pref.unwrap());
                     cuts.push(best_cut);
                     break;
