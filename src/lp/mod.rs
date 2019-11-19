@@ -72,7 +72,9 @@ impl<'a> PreferenceEstimator<'a> {
     ) -> Option<Preference> {
         let costs = path.get_subpath_costs(self.graph, source_idx, target_idx);
 
+        let mut prev_alphas: Vec<Preference> = Vec::new();
         let mut alpha = [1.0 / EDGE_COST_DIMENSION as f64; EDGE_COST_DIMENSION];
+        prev_alphas.push(alpha);
         loop {
             println!("find shortest path");
             let result = self
@@ -112,6 +114,11 @@ impl<'a> PreferenceEstimator<'a> {
                         return Some(alpha);
                     }
                     alpha = result;
+                    if prev_alphas.iter().any(|a| a == &alpha) {
+                        println!("looping alphas");
+                        return Some(alpha);
+                    }
+                    prev_alphas.push(alpha);
                     println!("alpha: {:?}", alpha);
                 }
                 None => return None,
@@ -147,12 +154,12 @@ impl<'a> PreferenceEstimator<'a> {
         acc + LpExpression::ConsCont(self.variables[index].clone())
          * ((route.costs[index] - result.costs[index]) as f32)
     })
-            .le(0);
-        }
-        }
-            all_explained
-        }
-             */
+        .le(0);
+    }
+    }
+        all_explained
+    }
+         */
 
     fn solve_lp(&self) -> Option<Preference> {
         /*
