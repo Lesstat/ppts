@@ -74,6 +74,7 @@ impl<'a> PreferenceEstimator<'a> {
 
         let mut alpha = [1.0 / EDGE_COST_DIMENSION as f64; EDGE_COST_DIMENSION];
         loop {
+            println!("find shortest path");
             let result = self
                 .graph
                 .find_shortest_path(
@@ -155,9 +156,9 @@ impl<'a> PreferenceEstimator<'a> {
     fn solve_lp(&self) -> Option<Preference> {
         /*
         self.problem
-            .write_lp("lp_formulation")
-            .expect("Could not write LP to file");
-        */
+        .write_lp("lp_formulation")
+        .expect("Could not write LP to file");
+         */
         match self.solver.run(&self.problem) {
             Ok((_status, var_values)) => {
                 // println!("Solver Status: {:?}", status);
