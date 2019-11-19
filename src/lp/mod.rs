@@ -45,24 +45,24 @@ impl<'a> PreferenceEstimator<'a> {
     }
 
     /*
-    pub fn calc_preference(
+        pub fn calc_preference(
         &mut self,
         driven_routes: &[Path],
         alpha: Preference,
     ) -> Option<Preference> {
         let current_feasible = self.check_feasibility(driven_routes, alpha);
         if current_feasible {
-            return Some(alpha);
-        }
+        return Some(alpha);
+    }
         while let Some(alpha) = self.solve_lp() {
-            let feasible = self.check_feasibility(driven_routes, alpha);
-            if feasible {
-                return Some(alpha);
-            }
-        }
+        let feasible = self.check_feasibility(driven_routes, alpha);
+        if feasible {
+        return Some(alpha);
+    }
+    }
         None
     }
-    */
+         */
 
     pub fn calc_preference(
         &mut self,
@@ -86,12 +86,12 @@ impl<'a> PreferenceEstimator<'a> {
                 // Catch case paths are equal, but have slightly different costs (precision issue)
                 return Some(alpha);
             } else if result.user_split.get_total_cost() > costs_by_alpha(costs, alpha) {
-                println!(
-                    "Shouldn't happen: result: {:?}; user: {:?}",
-                    result.user_split.get_total_cost(),
-                    costs_by_alpha(costs, alpha)
-                );
-                dbg!(&costs, &result.total_dimension_costs, &alpha);
+                // println!(
+                //     "Shouldn't happen: result: {:?}; user: {:?}",
+                //     result.user_split.get_total_cost(),
+                //     costs_by_alpha(costs, alpha)
+                // );
+                // dbg!(&costs, &result.total_dimension_costs, &alpha);
                 return Some(alpha);
             }
             let new_delta = LpContinuous::new(&format!("delta{}", self.deltas.len()));
@@ -118,39 +118,39 @@ impl<'a> PreferenceEstimator<'a> {
     }
 
     /*
-    fn check_feasibility(&mut self, driven_routes: &[Path], alpha: Preference) -> bool {
+        fn check_feasibility(&mut self, driven_routes: &[Path], alpha: Preference) -> bool {
         let mut all_explained = true;
         for route in driven_routes {
-            let source = route.nodes[0];
-            let target = route.nodes[route.nodes.len() - 1];
-            let result = self
-                .graph
-                .find_shortest_path(vec![source, target], alpha)
-                .unwrap();
-            if route.nodes == result.nodes {
-                println!("Paths are equal, proceed with next route");
-            } else if costs_by_alpha(route.costs, alpha) > result.total_cost {
-                all_explained = false;
-                println!(
-                    "Not explained, {} > {}",
-                    costs_by_alpha(route.costs, alpha),
-                    result.total_cost
-                );
-                let new_delta = LpContinuous::new(&format!("delta{}", self.deltas.len()));
-                self.problem += new_delta.ge(0);
-                self.problem += new_delta.clone();
-                self.deltas.push(new_delta.clone());
-                self.problem += (0..EDGE_COST_DIMENSION)
-                    .fold(LpExpression::ConsCont(new_delta), |acc, index| {
-                        acc + LpExpression::ConsCont(self.variables[index].clone())
-                            * ((route.costs[index] - result.costs[index]) as f32)
-                    })
-                    .le(0);
-            }
-        }
+        let source = route.nodes[0];
+        let target = route.nodes[route.nodes.len() - 1];
+        let result = self
+        .graph
+        .find_shortest_path(vec![source, target], alpha)
+        .unwrap();
+        if route.nodes == result.nodes {
+        println!("Paths are equal, proceed with next route");
+    } else if costs_by_alpha(route.costs, alpha) > result.total_cost {
+        all_explained = false;
+        println!(
+        "Not explained, {} > {}",
+        costs_by_alpha(route.costs, alpha),
+        result.total_cost
+    );
+        let new_delta = LpContinuous::new(&format!("delta{}", self.deltas.len()));
+        self.problem += new_delta.ge(0);
+        self.problem += new_delta.clone();
+        self.deltas.push(new_delta.clone());
+        self.problem += (0..EDGE_COST_DIMENSION)
+        .fold(LpExpression::ConsCont(new_delta), |acc, index| {
+        acc + LpExpression::ConsCont(self.variables[index].clone())
+         * ((route.costs[index] - result.costs[index]) as f32)
+    })
+        .le(0);
+    }
+    }
         all_explained
     }
-    */
+         */
 
     fn solve_lp(&self) -> Option<Preference> {
         /*

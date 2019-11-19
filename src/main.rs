@@ -53,12 +53,18 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let _results: Vec<Path> = trajectories
         .iter()
         .map(|t| t.to_path(&graph, &edge_lookup))
+        .enumerate()
+        .map(|(i, p)| {
+            println!(
+                "processing trajectory {} => {} of {} trajectories",
+                p.id,
+                i + 1,
+                trajectories.len()
+            );
+            p
+        })
         .map(|mut p| {
             graph.find_preference(&mut p);
-            if let Some(ref splits) = p.algo_split {
-                println!("cut trajectory into {} parts", splits.cuts.len());
-                println!("with preferences {:?}", splits.alphas);
-            }
             p
         })
         .collect();

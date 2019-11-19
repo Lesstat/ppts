@@ -117,7 +117,6 @@ impl Graph {
     }
 
     pub fn find_preference(&self, path: &mut Path) {
-        println!("=== Calculate Preference ===");
         let path_length = path.nodes.len();
         let mut cuts = Vec::new();
         let mut alphas = Vec::new();
@@ -154,7 +153,6 @@ impl Graph {
             dimension_costs,
             costs_by_alpha,
         });
-        println!("=== Found Preference ===");
     }
 
     fn get_ch_edges_out(&self, node_id: usize) -> &[HalfEdge] {
