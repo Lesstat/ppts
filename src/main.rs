@@ -7,7 +7,9 @@ mod helpers;
 mod lp;
 mod trajectories;
 
-const EDGE_COST_DIMENSION: usize = 5;
+use graph::path::Path;
+
+const EDGE_COST_DIMENSION: usize = 4;
 
 #[derive(Debug)]
 pub enum MyError {
@@ -44,22 +46,18 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         return Err(Box::new(MyError::InvalidTrajectories));
     }
 
-    // let user_split = graph::path::PathSplit {
-    //     cuts: vec![1],
-    //     alphas: vec![[0.0, 0.0, 0.0, 1.0]],
-    //     dimension_costs: vec![[1.0, 2.0, 3.0, 4.0]],
-    //     costs_by_alpha: vec![0.0],
-    // };
-
-    // let mut path = graph::path::Path {
-    //     id: 0,
-
-    //     nodes: vec![1, 2],
-    //     edges: vec![5],
-    //     user_split,
-    //     algo_split: None,
-    //     total_dimension_costs: [1.0, 2.0, 3.0, 4.0],
-    // };
+    let _results: Vec<Path> = trajectories
+        .iter()
+        .map(|t| t.to_path(&graph, &edge_lookup))
+        .map(|mut p| {
+            graph.find_preference(&mut p);
+            if let Some(ref splits) = p.algo_split {
+                println!("cut trajectory into {} parts", splits.cuts.len());
+                println!("with preferences {:?}", splits.alphas);
+            }
+            p
+        })
+        .collect();
 
     // graph.find_preference(&mut path);
     // // server::start_server(graph);

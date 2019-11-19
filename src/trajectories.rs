@@ -41,12 +41,8 @@ pub fn read_trajectorries<P: AsRef<std::path::Path>>(
 }
 
 impl Trajectory {
-    pub fn to_path(
-        &self,
-        graph: &Graph,
-        edge_lookup: &EdgeLookup,
-    ) -> Result<Path, Box<dyn std::error::Error>> {
-        let id = 1;
+    pub fn to_path(&self, graph: &Graph, edge_lookup: &EdgeLookup) -> Path {
+        let id = self.trip_id as usize;
         let edges: Vec<usize> = self
             .path
             .iter()
@@ -54,10 +50,9 @@ impl Trajectory {
             .collect();
 
         let first_node = edges.iter().take(1).map(|e| &graph.edges[*e].source_id);
-        let nodes: Vec<usize> = first_node
-            .chain(edges.iter().map(|e| &graph.edges[*e].target_id))
-            .copied()
-            .collect();
+        let rest_nodes = edges.iter().map(|e| &graph.edges[*e].target_id);
+
+        let nodes: Vec<usize> = first_node.chain(rest_nodes).copied().collect();
 
         let algo_split = None;
         let total_dimension_costs = [0.0; super::EDGE_COST_DIMENSION];
@@ -80,6 +75,6 @@ impl Trajectory {
 
         path.total_dimension_costs = path.get_subpath_costs(graph, 0, node_count - 1);
 
-        Ok(path)
+        path
     }
 }
