@@ -92,6 +92,7 @@ impl<'a> PreferenceEstimator<'a> {
                     costs_by_alpha(costs, alpha)
                 );
                 dbg!(&costs, &result.total_dimension_costs, &alpha);
+                return Some(alpha);
             }
             let new_delta = LpContinuous::new(&format!("delta{}", self.deltas.len()));
             self.problem += new_delta.ge(0);
