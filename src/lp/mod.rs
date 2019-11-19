@@ -110,16 +110,12 @@ impl<'a> PreferenceEstimator<'a> {
 
             match self.solve_lp() {
                 Some(result) => {
-                    if result == alpha {
-                        return Some(alpha);
+                    if prev_alphas.iter().any(|a| a == &result) {
+                        // println!("looping alphas");
+                        return Some(result);
                     }
                     alpha = result;
-                    if prev_alphas.iter().any(|a| a == &alpha) {
-                        // println!("looping alphas");
-                        return Some(alpha);
-                    }
                     prev_alphas.push(alpha);
-                    // println!("alpha: {:?}", alpha);
                 }
                 None => return None,
             }
@@ -158,8 +154,8 @@ impl<'a> PreferenceEstimator<'a> {
     }
     }
         all_explained
-    }
-         */
+        }
+             */
 
     fn solve_lp(&self) -> Option<Preference> {
         /*
