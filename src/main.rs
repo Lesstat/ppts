@@ -9,7 +9,7 @@ mod trajectories;
 
 use graph::path::Path;
 
-const EDGE_COST_DIMENSION: usize = 4;
+const EDGE_COST_DIMENSION: usize = 5;
 
 #[derive(Debug)]
 pub enum MyError {

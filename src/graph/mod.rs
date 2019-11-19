@@ -129,9 +129,11 @@ impl Graph {
             let mut best_cut = 0;
             loop {
                 let m = (low + high) / 2;
+                println!("looking for pref between nodes {} and {} ", start, m);
                 let mut estimator = PreferenceEstimator::new(self);
                 let pref = estimator.calc_preference(&path, start, m);
                 if pref.is_some() {
+                    println!("found pref {:?}", pref);
                     low = m + 1;
                     best_pref = pref;
                     best_cut = m;

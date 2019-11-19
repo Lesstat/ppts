@@ -110,10 +110,10 @@ impl<'a> Dijkstra<'a> {
                     n_popped
                 );
                 */
-                println!(
-                    "Found path with dim_costs {:?} and cost {:?}",
-                    costs, total_cost
-                );
+                // println!(
+                //     "Found path with dim_costs {:?} and cost {:?}",
+                //     costs, total_cost
+                // );
                 let edges = self.make_edge_path(node_id);
                 Some(DijkstraResult {
                     edges,
