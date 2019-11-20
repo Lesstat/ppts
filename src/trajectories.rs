@@ -1,4 +1,3 @@
-// use super::MyError;
 use crate::graph::path::{Path, PathSplit};
 use crate::graph::Graph;
 use crate::graphml::EdgeLookup;
@@ -10,9 +9,9 @@ use std::string::ToString;
 
 #[derive(Debug, Deserialize)]
 pub struct Trajectory {
-    trip_id: i64,
-    vehicle_id: i64,
-    path: Vec<i64>,
+    pub trip_id: i64,
+    pub vehicle_id: i64,
+    pub path: Vec<i64>,
 }
 
 pub fn check_trajectory(tra: &Trajectory, graph: &Graph, edge_lookup: &EdgeLookup) -> bool {
@@ -78,16 +77,17 @@ impl Trajectory {
         path
     }
 
-    pub fn filter_out_self_loops(&mut self, graph: &Graph, edge_lookup: &EdgeLookup) {
-        self.path = self
-            .path
-            .iter()
-            .filter(|e| {
+    pub fn filter_out_self_loops(&mut self, graph: &Graph, edge_lookup: &EdgeLookup) -> Vec<usize> {
+        let (normal, self_loops): (Vec<_>, Vec<_>) =
+            self.path.iter().enumerate().partition(|(_, e)| {
                 let e_idx = edge_lookup[&e.to_string()];
                 let edge = &graph.edges[e_idx];
                 edge.source_id != edge.target_id
-            })
-            .copied()
-            .collect();
+            });
+
+        let indices = self_loops.into_iter().map(|(i, _)| i).collect();
+        self.path = normal.into_iter().map(|(_, e)| e).copied().collect();
+
+        indices
     }
 }

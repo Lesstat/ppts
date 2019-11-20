@@ -1,13 +1,21 @@
+use std::convert::TryInto;
 use std::env;
 use std::fmt::{Display, Formatter};
+use std::io::Write;
+use std::time::Instant;
 
 mod graph;
 mod graphml;
 mod helpers;
 mod lp;
+mod statistics;
 mod trajectories;
 
 use graph::path::Path;
+use statistics::SplittingStatistics;
+
+use chrono::prelude::*;
+use rayon::prelude::*;
 
 const EDGE_COST_DIMENSION: usize = 5;
 
@@ -36,9 +44,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let mut trajectories = trajectories::read_trajectorries(&args[2])?;
 
+    let mut statistics: Vec<_> = trajectories.iter().map(SplittingStatistics::new).collect();
+
     trajectories
         .iter_mut()
-        .for_each(|t| t.filter_out_self_loops(&graph, &edge_lookup));
+        .zip(statistics.iter_mut())
+        .for_each(|(t, s)| {
+            s.removed_self_loop_indices = t.filter_out_self_loops(&graph, &edge_lookup);
+        });
 
     if trajectories
         .iter()
@@ -51,25 +64,37 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     let _results: Vec<Path> = trajectories
-        .iter()
-        .map(|t| t.to_path(&graph, &edge_lookup))
-        .enumerate()
-        .map(|(i, p)| {
-            println!(
-                "processing trajectory {} => {} of {} trajectories",
-                p.id,
-                i + 1,
-                trajectories.len()
-            );
-            p
-        })
-        .map(|mut p| {
+        .par_iter()
+        .zip(statistics.par_iter_mut())
+        .map(|(t, s)| (t.to_path(&graph, &edge_lookup), s))
+        .map(|(mut p, s)| {
+            let start = Instant::now();
             graph.find_preference(&mut p);
+            let time = start.elapsed();
+            s.run_time = time
+                .as_millis()
+                .try_into()
+                .expect("Couldn't convert run time into usize");
+
+            if let Some(ref algo_split) = p.algo_split {
+                s.preferences = algo_split.alphas.clone();
+                s.cuts = algo_split.cuts.clone();
+            }
             p
         })
         .collect();
 
+    let outfile_name = format!(
+        "splitting_results_{}.json",
+        Utc::now().format("%Y-%m-%d_%H:%M:%S").to_string()
+    );
+
+    let outfile = std::fs::File::create(outfile_name)?;
+    let mut outfile = std::io::BufWriter::new(outfile);
+
+    outfile.write_all(serde_json::to_string_pretty(&statistics)?.as_bytes())?;
+    Ok(())
+
     // graph.find_preference(&mut path);
     // // server::start_server(graph);
-    Ok(())
 }
