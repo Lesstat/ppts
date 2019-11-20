@@ -3,7 +3,7 @@ use std::error::Error;
 use std::io::Read;
 use std::path::Path;
 
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::convert::TryInto;
 
 use crate::graph::{Edge, Graph, Node};
@@ -15,23 +15,28 @@ enum GraphObject {
     Edge,
 }
 
-enum AttributeType {
+pub enum AttributeType {
     Boolean,
     String,
-    Double,
+    Double(usize),
     Long,
 }
 
-struct GraphmlAttribute<'a> {
-    obj_type: GraphObject,
-    name: &'a str,
-    attribute_type: AttributeType,
+pub struct GraphmlAttribute {
+    _obj_type: GraphObject,
+    pub name: String,
+    pub attribute_type: AttributeType,
 }
 
 pub type EdgeLookup = HashMap<String, usize>;
 
-impl<'a> GraphmlAttribute<'a> {
-    fn new(obj_type: &'a str, name: &'a str, attribute_type: &'a str) -> GraphmlAttribute<'a> {
+impl<'a> GraphmlAttribute {
+    fn new(
+        obj_type: &'a str,
+        name: &'a str,
+        attribute_type: &'a str,
+        metric_count: usize,
+    ) -> GraphmlAttribute {
         let obj_type = match obj_type {
             "node" => GraphObject::Node,
             "edge" => GraphObject::Edge,
@@ -42,19 +47,27 @@ impl<'a> GraphmlAttribute<'a> {
             "boolean" => AttributeType::Boolean,
             "string" => AttributeType::String,
             "long" => AttributeType::Long,
-            "double" => AttributeType::Double,
+            "double" => AttributeType::Double(metric_count),
             _ => panic!("unkown attribute type"),
         };
 
         GraphmlAttribute {
-            obj_type,
-            name,
+            _obj_type: obj_type,
+            name: name.to_owned(),
             attribute_type,
         }
     }
 }
 
-pub fn read_graphml<P: AsRef<Path>>(file_path: P) -> Result<(Graph, EdgeLookup), Box<dyn Error>> {
+type KeyMap = BTreeMap<String, GraphmlAttribute>;
+
+pub struct GraphData {
+    pub graph: Graph,
+    pub edge_lookup: EdgeLookup,
+    pub keys: KeyMap,
+}
+
+pub fn read_graphml<P: AsRef<Path>>(file_path: P) -> Result<GraphData, Box<dyn Error>> {
     let mut contents = String::new();
 
     let file = std::fs::File::open(file_path)?;
@@ -63,7 +76,8 @@ pub fn read_graphml<P: AsRef<Path>>(file_path: P) -> Result<(Graph, EdgeLookup),
     file.read_to_string(&mut contents)?;
     let doc = Document::parse(&contents)?;
 
-    let keys: HashMap<&str, GraphmlAttribute> = doc
+    let mut metric_count = 0;
+    let keys: KeyMap = doc
         .root()
         .descendants()
         .filter(|n| n.has_tag_name("key"))
@@ -78,7 +92,11 @@ pub fn read_graphml<P: AsRef<Path>>(file_path: P) -> Result<(Graph, EdgeLookup),
                 .attribute("attr.type")
                 .expect("No 'attr.type' attribute on key element");
             let id = d.attribute("id").expect("No 'id' attribute on key element");
-            (id, GraphmlAttribute::new(obj_type, name, attr_type))
+            let attr = GraphmlAttribute::new(obj_type, name, attr_type, metric_count);
+            if let AttributeType::Double(_) = attr.attribute_type {
+                metric_count += 1;
+            }
+            (id.to_owned(), attr)
         })
         .collect();
 
@@ -97,7 +115,7 @@ pub fn read_graphml<P: AsRef<Path>>(file_path: P) -> Result<(Graph, EdgeLookup),
 
                 let attribute = &keys[key];
 
-                match attribute.name {
+                match attribute.name.as_str() {
                     "level" => ch_level = text.parse().expect("Could not parse ch level"),
                     "id" => id = parse_node_id(text),
                     _ => (),
@@ -137,13 +155,17 @@ pub fn read_graphml<P: AsRef<Path>>(file_path: P) -> Result<(Graph, EdgeLookup),
 
     println!("parsed {} edges", edges.len());
 
-    Ok((Graph::new(nodes, edges), edge_lookup))
+    Ok(GraphData {
+        graph: Graph::new(nodes, edges),
+        edge_lookup,
+        keys,
+    })
 }
 
 fn parse_edge_from_xml<'a, 'input>(
     id: usize,
     node: &roxmltree::Node<'a, 'input>,
-    keys: &HashMap<&str, GraphmlAttribute>,
+    keys: &KeyMap,
     edge_lookup: &EdgeLookup,
 ) -> Edge {
     let mut costs = [0.0; super::EDGE_COST_DIMENSION];
@@ -161,7 +183,6 @@ fn parse_edge_from_xml<'a, 'input>(
     let mut edge_a: i64 = -1;
     let mut edge_b: i64 = -1;
 
-    let mut cost_idx = 0;
     for d in node.descendants().filter(|n| n.has_tag_name("data")) {
         let attr = &keys[d
             .attribute("key")
@@ -173,7 +194,7 @@ fn parse_edge_from_xml<'a, 'input>(
             continue;
         };
 
-        match attr.name {
+        match attr.name.as_str() {
             "edgeA" => {
                 edge_a = if text != "-1" {
                     edge_lookup[text].try_into().unwrap()
@@ -191,11 +212,10 @@ fn parse_edge_from_xml<'a, 'input>(
             _ => (),
         }
 
-        if let AttributeType::Double = attr.attribute_type {
-            costs[cost_idx] = text
+        if let AttributeType::Double(idx) = attr.attribute_type {
+            costs[idx] = text
                 .parse()
                 .unwrap_or_else(|t| panic!("could not parse text {} of {}", t, attr.name));
-            cost_idx += 1;
         }
     }
 

@@ -12,12 +12,14 @@ mod statistics;
 mod trajectories;
 
 use graph::path::Path;
+use graphml::{AttributeType, GraphData};
 use statistics::SplittingStatistics;
 
 use chrono::prelude::*;
 use indicatif::{ProgressBar, ProgressStyle};
+use serde::Serialize;
 
-const EDGE_COST_DIMENSION: usize = 5;
+const EDGE_COST_DIMENSION: usize = 4;
 
 #[derive(Debug)]
 pub enum MyError {
@@ -34,15 +36,30 @@ impl Display for MyError {
 
 impl std::error::Error for MyError {}
 
+#[derive(Serialize)]
+struct Results<'a> {
+    graph_file: &'a str,
+    trajectory_file: &'a str,
+    metrics: [&'a str; EDGE_COST_DIMENSION],
+    results: Vec<SplittingStatistics>,
+}
+
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args: Vec<String> = env::args().collect();
     if args.len() != 3 {
         panic!("Please provide exactly two parameter, which is the path to the graph file and the path to the trajectory file");
     }
 
-    let (graph, edge_lookup) = graphml::read_graphml(&args[1])?;
+    let graph_file = &args[1];
 
-    let mut trajectories = trajectories::read_trajectorries(&args[2])?;
+    let GraphData {
+        graph,
+        edge_lookup,
+        keys,
+    } = graphml::read_graphml(graph_file)?;
+
+    let trajectory_file = &args[2];
+    let mut trajectories = trajectories::read_trajectorries(trajectory_file)?;
 
     let mut statistics: Vec<_> = trajectories.iter().map(SplittingStatistics::new).collect();
 
@@ -103,10 +120,25 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("writing results to \"{}\"", outfile_name);
 
+    let mut metrics = [""; EDGE_COST_DIMENSION];
+
+    for key in keys.values() {
+        if let AttributeType::Double(idx) = key.attribute_type {
+            metrics[idx] = key.name.as_str();
+        }
+    }
+
     let outfile = std::fs::File::create(outfile_name)?;
     let mut outfile = std::io::BufWriter::new(outfile);
 
-    outfile.write_all(serde_json::to_string_pretty(&statistics)?.as_bytes())?;
+    let results = Results {
+        graph_file,
+        trajectory_file,
+        metrics,
+        results: statistics,
+    };
+
+    outfile.write_all(serde_json::to_string_pretty(&results)?.as_bytes())?;
     Ok(())
 
     // graph.find_preference(&mut path);
