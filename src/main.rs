@@ -15,7 +15,7 @@ use graph::path::Path;
 use statistics::SplittingStatistics;
 
 use chrono::prelude::*;
-use rayon::prelude::*;
+use indicatif::{ProgressBar, ProgressStyle};
 
 const EDGE_COST_DIMENSION: usize = 5;
 
@@ -63,9 +63,18 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         return Err(Box::new(MyError::InvalidTrajectories));
     }
 
+    let progress = ProgressBar::new(trajectories.len().try_into().unwrap());
+    progress.set_style(
+        ProgressStyle::default_spinner()
+            .template("[{elapsed}] {bar:40.cyan/blue} {pos}/{len}")
+            .progress_chars("#>-"),
+    );
+
+    progress.set_draw_delta((trajectories.len() / 100).try_into().unwrap());
+
     let _results: Vec<Path> = trajectories
-        .par_iter()
-        .zip(statistics.par_iter_mut())
+        .iter()
+        .zip(statistics.iter_mut())
         .map(|(t, s)| (t.to_path(&graph, &edge_lookup), s))
         .map(|(mut p, s)| {
             let start = Instant::now();
@@ -80,14 +89,19 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 s.preferences = algo_split.alphas.clone();
                 s.cuts = algo_split.cuts.clone();
             }
+            progress.inc(1);
             p
         })
         .collect();
+
+    progress.finish();
 
     let outfile_name = format!(
         "splitting_results_{}.json",
         Utc::now().format("%Y-%m-%d_%H:%M:%S").to_string()
     );
+
+    println!("writing results to \"{}\"", outfile_name);
 
     let outfile = std::fs::File::create(outfile_name)?;
     let mut outfile = std::io::BufWriter::new(outfile);
