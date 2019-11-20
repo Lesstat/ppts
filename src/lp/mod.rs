@@ -95,7 +95,8 @@ impl<'a> PreferenceEstimator<'a> {
                 //     costs_by_alpha(costs, alpha)
                 // );
                 // dbg!(&costs, &result.total_dimension_costs, &alpha);
-                return Some(alpha);
+                let res = Some(alpha);
+                return res;
             }
             let new_delta = LpContinuous::new(&format!("delta{}", self.deltas.len()));
             self.problem += new_delta.ge(0);
@@ -111,8 +112,7 @@ impl<'a> PreferenceEstimator<'a> {
             match self.solve_lp() {
                 Some(result) => {
                     if prev_alphas.iter().any(|a| a == &result) {
-                        // println!("looping alphas");
-                        return Some(result);
+                        return None;
                     }
                     alpha = result;
                     prev_alphas.push(alpha);
@@ -154,8 +154,8 @@ impl<'a> PreferenceEstimator<'a> {
     }
     }
         all_explained
-        }
-             */
+    }
+         */
 
     fn solve_lp(&self) -> Option<Preference> {
         /*
