@@ -1,14 +1,14 @@
 pub use edge::Edge;
 use edge::HalfEdge;
 
+use dijkstra::Dijkstra;
 pub use node::Node;
-use path::Path;
+use path::{Path, PathSplit};
 
-use crate::graph::path::PathSplit;
 use crate::helpers::Preference;
 use crate::lp::PreferenceEstimator;
 
-mod dijkstra;
+pub mod dijkstra;
 mod edge;
 mod node;
 pub mod path;
@@ -74,11 +74,12 @@ impl Graph {
 
     pub fn find_shortest_path(
         &self,
+        dijkstra: &mut Dijkstra,
         id: usize,
         include: Vec<usize>,
         alpha: Preference,
     ) -> Option<Path> {
-        if let Some(result) = dijkstra::find_path(self, &include, alpha) {
+        if let Some(result) = dijkstra::find_path(dijkstra, &include, alpha) {
             let unpacked_edges: Vec<Vec<usize>> = result
                 .edges
                 .iter()
@@ -120,6 +121,7 @@ impl Graph {
         let mut cuts = Vec::new();
         let mut alphas = Vec::new();
         let mut start: usize = 0;
+        let mut dijkstra = Dijkstra::new(self);
 
         while start < path_length - 1 {
             // println!("start: {}, path_length: {}", start, path_length);
@@ -134,7 +136,7 @@ impl Graph {
                     return;
                 }
                 let mut estimator = PreferenceEstimator::new(self);
-                let pref = estimator.calc_preference(&path, start, m);
+                let pref = estimator.calc_preference(&mut dijkstra, &path, start, m);
                 if pref.is_some() {
                     low = m + 1;
                     best_pref = pref;

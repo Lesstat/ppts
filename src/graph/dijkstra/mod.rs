@@ -22,7 +22,7 @@ pub struct DijkstraResult {
     pub total_cost: f64,
 }
 
-struct Dijkstra<'a> {
+pub struct Dijkstra<'a> {
     graph: &'a Graph,
     candidates: BinaryHeap<State>,
     touched_nodes: Vec<usize>,
@@ -42,7 +42,7 @@ struct Dijkstra<'a> {
 }
 
 impl<'a> Dijkstra<'a> {
-    fn new(graph: &Graph) -> Dijkstra {
+    pub fn new(graph: &Graph) -> Dijkstra {
         let num_of_nodes = graph.nodes.len();
         Dijkstra {
             graph,
@@ -208,9 +208,12 @@ impl<'a> Dijkstra<'a> {
     }
 }
 
-pub fn find_path(graph: &Graph, include: &[usize], alpha: Preference) -> Option<HalfPath> {
+pub fn find_path(
+    dijkstra: &mut Dijkstra,
+    include: &[usize],
+    alpha: Preference,
+) -> Option<HalfPath> {
     // println!("=== Running Dijkstra search ===");
-    let mut dijkstra = Dijkstra::new(graph);
     let mut edges = Vec::new();
     let mut dimension_costs = Vec::new();
     let mut total_dimension_costs = [0.0; EDGE_COST_DIMENSION];

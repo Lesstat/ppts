@@ -1,6 +1,7 @@
 use lp_modeler::dsl::{lp_sum, LpContinuous, LpExpression, LpObjective, LpOperations, LpProblem};
 use lp_modeler::solvers::{GlpkSolver, SolverTrait};
 
+use crate::graph::dijkstra::Dijkstra;
 use crate::graph::path::Path;
 use crate::graph::Graph;
 use crate::helpers::{costs_by_alpha, Preference};
@@ -64,6 +65,7 @@ impl<'a> PreferenceEstimator<'a> {
 
     pub fn calc_preference(
         &mut self,
+        dijkstra: &mut Dijkstra,
         path: &Path,
         source_idx: usize,
         target_idx: usize,
@@ -78,6 +80,7 @@ impl<'a> PreferenceEstimator<'a> {
             let result = self
                 .graph
                 .find_shortest_path(
+                    dijkstra,
                     0,
                     vec![path.nodes[source_idx], path.nodes[target_idx]],
                     alpha,
