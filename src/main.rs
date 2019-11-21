@@ -1,48 +1,15 @@
 use std::convert::TryInto;
 use std::env;
-use std::fmt::{Display, Formatter};
 use std::io::Write;
 use std::time::Instant;
 
-mod graph;
-mod graphml;
-mod helpers;
-mod lp;
-mod statistics;
-mod trajectories;
-
-use graph::path::Path;
-use graphml::{AttributeType, GraphData};
-use statistics::SplittingStatistics;
+use preference_splitting::graphml::{read_graphml, AttributeType, GraphData};
+use preference_splitting::statistics::{SplittingResults, SplittingStatistics};
+use preference_splitting::trajectories::{check_trajectory, read_trajectories};
+use preference_splitting::{MyError, EDGE_COST_DIMENSION};
 
 use chrono::prelude::*;
 use indicatif::{ProgressBar, ProgressStyle};
-use serde::Serialize;
-
-const EDGE_COST_DIMENSION: usize = 4;
-
-#[derive(Debug)]
-pub enum MyError {
-    InvalidTrajectories,
-}
-
-impl Display for MyError {
-    fn fmt(&self, f: &mut Formatter) -> Result<(), std::fmt::Error> {
-        match self {
-            MyError::InvalidTrajectories => write!(f, "Invalid Trajectories"),
-        }
-    }
-}
-
-impl std::error::Error for MyError {}
-
-#[derive(Serialize)]
-struct Results<'a> {
-    graph_file: &'a str,
-    trajectory_file: &'a str,
-    metrics: [&'a str; EDGE_COST_DIMENSION],
-    results: Vec<SplittingStatistics>,
-}
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args: Vec<String> = env::args().collect();
@@ -56,10 +23,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         graph,
         edge_lookup,
         keys,
-    } = graphml::read_graphml(graph_file)?;
+    } = read_graphml(graph_file)?;
 
     let trajectory_file = &args[2];
-    let mut trajectories = trajectories::read_trajectorries(trajectory_file)?;
+    let mut trajectories = read_trajectories(trajectory_file)?;
 
     let mut statistics: Vec<_> = trajectories.iter().map(SplittingStatistics::new).collect();
 
@@ -72,7 +39,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     if trajectories
         .iter()
-        .all(|t| trajectories::check_trajectory(t, &graph, &edge_lookup))
+        .all(|t| check_trajectory(t, &graph, &edge_lookup))
     {
         println!("all {} trajectories seem valid :-)", trajectories.len());
     } else {
@@ -89,11 +56,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     progress.set_draw_delta((trajectories.len() / 100).try_into().unwrap());
 
-    let _results: Vec<Path> = trajectories
+    trajectories
         .iter()
         .zip(statistics.iter_mut())
         .map(|(t, s)| (t.to_path(&graph, &edge_lookup), s))
-        .map(|(mut p, s)| {
+        .for_each(|(mut p, s)| {
             let start = Instant::now();
             graph.find_preference(&mut p);
             let time = start.elapsed();
@@ -107,9 +74,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 s.cuts = algo_split.cuts.clone();
             }
             progress.inc(1);
-            p
-        })
-        .collect();
+        });
 
     progress.finish();
 
@@ -131,7 +96,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let outfile = std::fs::File::create(outfile_name)?;
     let mut outfile = std::io::BufWriter::new(outfile);
 
-    let results = Results {
+    let results = SplittingResults {
         graph_file,
         trajectory_file,
         metrics,

@@ -1,5 +1,6 @@
 use crate::helpers::Preference;
 use crate::trajectories::Trajectory;
+use crate::EDGE_COST_DIMENSION;
 
 use serde::Serialize;
 
@@ -12,6 +13,14 @@ pub struct SplittingStatistics {
     pub preferences: Vec<Preference>,
     pub cuts: Vec<usize>,
     pub run_time: usize,
+}
+
+#[derive(Serialize)]
+pub struct SplittingResults<'a> {
+    pub graph_file: &'a str,
+    pub trajectory_file: &'a str,
+    pub metrics: [&'a str; EDGE_COST_DIMENSION],
+    pub results: Vec<SplittingStatistics>,
 }
 
 impl SplittingStatistics {

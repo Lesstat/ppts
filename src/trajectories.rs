@@ -30,7 +30,7 @@ pub fn check_trajectory(tra: &Trajectory, graph: &Graph, edge_lookup: &EdgeLooku
     })
 }
 
-pub fn read_trajectorries<P: AsRef<std::path::Path>>(
+pub fn read_trajectories<P: AsRef<std::path::Path>>(
     file_path: P,
 ) -> Result<Vec<Trajectory>, Box<dyn std::error::Error>> {
     let file = std::fs::File::open(file_path)?;
