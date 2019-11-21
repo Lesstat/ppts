@@ -1,7 +1,7 @@
 use preference_splitting::helpers::Preference;
 use preference_splitting::statistics::read_splitting_results;
 use preference_splitting::trajectories::read_trajectories;
-use preference_splitting::{MyError, MyResult};
+use preference_splitting::MyResult;
 
 use std::collections::HashMap;
 use std::env::args;

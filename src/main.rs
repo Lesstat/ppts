@@ -10,6 +10,7 @@ use preference_splitting::{MyError, EDGE_COST_DIMENSION};
 
 use chrono::prelude::*;
 use indicatif::{ProgressBar, ProgressStyle};
+use rayon::prelude::*;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args: Vec<String> = env::args().collect();
@@ -59,8 +60,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     progress.set_draw_delta((trajectories.len() / 100).try_into().unwrap());
 
     trajectories
-        .iter()
-        .zip(statistics.iter_mut())
+        .par_iter()
+        .zip(statistics.par_iter_mut())
         .map(|(t, s)| (t.to_path(&graph, &edge_lookup), s))
         .for_each(|(mut p, s)| {
             let start = Instant::now();

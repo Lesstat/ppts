@@ -6,10 +6,11 @@ edition = "2018"
 
 [dependencies]
 ordered-float = "1.0.2"
-lp-modeler = "0.3.3"
+lp-modeler = {version = "^0.4.3", git = "https://github.com/lesstat/rust-lp-modeler", branch = "no-file-io" }
 roxmltree = "0.7.*"
 serde_json = "1.*"
 serde = {version = "1.*", features = ["derive"]}
 geojson = "0.16.*"
 chrono = "0.4.*"
 indicatif = "0.13.*"
+rayon = "1.*"

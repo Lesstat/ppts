@@ -1,7 +1,5 @@
-use lp_modeler::operations::LpOperations;
-use lp_modeler::problem::{LpObjective, LpProblem};
+use lp_modeler::dsl::{lp_sum, LpContinuous, LpExpression, LpObjective, LpOperations, LpProblem};
 use lp_modeler::solvers::{GlpkSolver, SolverTrait};
-use lp_modeler::variables::{lp_sum, LpContinuous, LpExpression};
 
 use crate::graph::path::Path;
 use crate::graph::Graph;
@@ -164,11 +162,12 @@ impl<'a> PreferenceEstimator<'a> {
         .expect("Could not write LP to file");
          */
         match self.solver.run(&self.problem) {
-            Ok((_status, var_values)) => {
+            Ok(solution) => {
                 // println!("Solver Status: {:?}", status);
                 let mut alpha = [0.0; EDGE_COST_DIMENSION];
                 let mut all_zero = true;
-                for (name, value) in var_values.iter() {
+
+                for (name, value) in solution.results.iter() {
                     if !name.contains("delta") {
                         if *value != 0.0 {
                             all_zero = false;
