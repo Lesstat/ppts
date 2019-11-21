@@ -9,6 +9,8 @@ pub mod trajectories;
 
 pub const EDGE_COST_DIMENSION: usize = 4;
 
+pub type MyResult<T> = Result<T, Box<dyn std::error::Error>>;
+
 #[derive(Debug)]
 pub enum MyError {
     InvalidTrajectories,

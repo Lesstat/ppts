@@ -8,7 +8,7 @@ use serde_json::from_reader;
 
 #[derive(Serialize, Deserialize, Default)]
 pub struct SplittingStatistics {
-    trip_id: i64,
+    pub trip_id: i64,
     vehicle_id: i64,
     trajectory_length: usize,
     pub removed_self_loop_indices: Vec<usize>,
