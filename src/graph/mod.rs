@@ -130,6 +130,9 @@ impl Graph {
             loop {
                 let m = (low + high) / 2;
                 // println!("searching for preference from {} to {} ", start, m);
+                if start == m {
+                    return;
+                }
                 let mut estimator = PreferenceEstimator::new(self);
                 let pref = estimator.calc_preference(&path, start, m);
                 if pref.is_some() {
