@@ -1,10 +1,12 @@
 use crate::helpers::Preference;
 use crate::trajectories::Trajectory;
-use crate::EDGE_COST_DIMENSION;
 
-use serde::Serialize;
+use std::path::Path;
 
-#[derive(Serialize, Default)]
+use serde::{Deserialize, Serialize};
+use serde_json::from_reader;
+
+#[derive(Serialize, Deserialize, Default)]
 pub struct SplittingStatistics {
     trip_id: i64,
     vehicle_id: i64,
@@ -15,11 +17,11 @@ pub struct SplittingStatistics {
     pub run_time: usize,
 }
 
-#[derive(Serialize)]
-pub struct SplittingResults<'a> {
-    pub graph_file: &'a str,
-    pub trajectory_file: &'a str,
-    pub metrics: [&'a str; EDGE_COST_DIMENSION],
+#[derive(Serialize, Deserialize)]
+pub struct SplittingResults {
+    pub graph_file: String,
+    pub trajectory_file: String,
+    pub metrics: Vec<String>,
     pub results: Vec<SplittingStatistics>,
 }
 
@@ -33,4 +35,12 @@ impl SplittingStatistics {
 
         stat
     }
+}
+
+pub fn read_splitting_results<P: AsRef<Path>>(
+    path: P,
+) -> Result<SplittingResults, Box<dyn std::error::Error>> {
+    let file = std::fs::File::open(path)?;
+    let file = std::io::BufReader::new(file);
+    Ok(from_reader(file)?)
 }

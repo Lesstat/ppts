@@ -17,16 +17,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         panic!("Please provide exactly two parameter, which is the path to the graph file and the path to the trajectory file");
     }
 
-    let graph_file = &args[1];
+    let graph_file = args[1].to_owned();
 
     let GraphData {
         graph,
         edge_lookup,
         keys,
-    } = read_graphml(graph_file)?;
+    } = read_graphml(&graph_file)?;
 
-    let trajectory_file = &args[2];
-    let mut trajectories = read_trajectories(trajectory_file)?;
+    let trajectory_file = args[2].to_owned();
+    let mut trajectories = read_trajectories(&trajectory_file)?;
 
     let mut statistics: Vec<_> = trajectories.iter().map(SplittingStatistics::new).collect();
 
@@ -85,11 +85,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("writing results to \"{}\"", outfile_name);
 
-    let mut metrics = [""; EDGE_COST_DIMENSION];
+    let mut metrics = vec!["".to_owned(); EDGE_COST_DIMENSION];
 
     for key in keys.values() {
         if let AttributeType::Double(idx) = key.attribute_type {
-            metrics[idx] = key.name.as_str();
+            metrics[idx] = key.name.clone();
         }
     }
 
