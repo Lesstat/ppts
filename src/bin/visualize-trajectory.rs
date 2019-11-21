@@ -1,7 +1,7 @@
 use preference_splitting::helpers::Preference;
 use preference_splitting::statistics::read_splitting_results;
 use preference_splitting::trajectories::read_trajectories;
-use preference_splitting::MyResult;
+use preference_splitting::{MyError, MyResult};
 
 use std::collections::HashMap;
 use std::env::args;
@@ -18,6 +18,7 @@ fn main() -> MyResult<()> {
             "{} <trajectories.json> <splitting_results.json> <geojson.json> <trajectory-id>",
             args[0]
         );
+        return Ok(());
     }
     let trajectory_file = &args[1];
     let splitting_results_file = &args[2];

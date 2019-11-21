@@ -50,7 +50,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let progress = ProgressBar::new(trajectories.len().try_into().unwrap());
     progress.set_style(
         ProgressStyle::default_spinner()
-            .template("[{elapsed}] {bar:40.cyan/blue} {pos}/{len} [{eta} remaining]")
+            .template(
+                "[{elapsed_precise}] {bar:40.cyan/blue} {pos}/{len} [{eta_precise} remaining]",
+            )
             .progress_chars("#>-"),
     );
 
