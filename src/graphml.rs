@@ -7,6 +7,7 @@ use std::collections::{BTreeMap, HashMap};
 use std::convert::TryInto;
 
 use crate::graph::{Edge, Graph, Node};
+use crate::EDGE_COST_DIMENSION;
 
 use roxmltree::Document;
 
@@ -99,6 +100,12 @@ pub fn read_graphml<P: AsRef<Path>>(file_path: P) -> Result<GraphData, Box<dyn E
             (id.to_owned(), attr)
         })
         .collect();
+    if metric_count != EDGE_COST_DIMENSION {
+        panic!(
+            "Found {} metrics. Code was compiled for {}",
+            metric_count, EDGE_COST_DIMENSION
+        );
+    }
 
     let nodes: Vec<Node> = doc
         .root()
