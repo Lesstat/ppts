@@ -1,7 +1,5 @@
 use crate::helpers::Costs;
 
-use super::EDGE_COST_DIMENSION;
-
 #[derive(Debug)]
 pub struct Edge {
     pub id: usize,

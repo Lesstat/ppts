@@ -7,7 +7,6 @@ use path::Path;
 use crate::graph::path::PathSplit;
 use crate::helpers::Preference;
 use crate::lp::PreferenceEstimator;
-use crate::EDGE_COST_DIMENSION;
 
 mod dijkstra;
 mod edge;
