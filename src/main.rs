@@ -57,7 +57,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             .progress_chars("#>-"),
     );
 
-    progress.set_draw_delta((trajectories.len() / 100).try_into().unwrap());
+    progress.set_draw_delta((trajectories.len().min(100)).try_into().unwrap());
 
     trajectories
         .par_iter()
