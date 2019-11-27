@@ -127,7 +127,6 @@ impl<'a> Dijkstra<'a> {
     fn process_state(&mut self, candidate: State, alpha: Preference) {
         let State {
             node_id,
-            costs,
             total_cost,
             direction,
         } = candidate;
@@ -172,7 +171,6 @@ impl<'a> Dijkstra<'a> {
         };
         for half_edge in edges {
             let next_node = half_edge.target_id;
-            let next_costs = add_edge_costs(costs, half_edge.edge_costs);
             let next_total_cost = total_cost + costs_by_alpha(half_edge.edge_costs, alpha);
 
             if next_total_cost < my_costs[next_node] {
@@ -181,7 +179,6 @@ impl<'a> Dijkstra<'a> {
                 self.touched_nodes.push(next_node);
                 self.candidates.push(State {
                     node_id: next_node,
-                    costs: next_costs,
                     total_cost: next_total_cost,
                     direction,
                 });
