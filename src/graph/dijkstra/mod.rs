@@ -38,7 +38,7 @@ pub struct Dijkstra<'a> {
     pub previous_b: Vec<Option<usize>>,
 
     // (node_id, cost array, total_cost)
-    best_node: (Option<usize>, f64),
+    best_node: Option<(usize, f64)>,
 }
 
 impl<'a> Dijkstra<'a> {
@@ -54,7 +54,7 @@ impl<'a> Dijkstra<'a> {
             cost_b: vec![std::f64::MAX; num_of_nodes],
             previous_f: vec![None; num_of_nodes],
             previous_b: vec![None; num_of_nodes],
-            best_node: (None, std::f64::MAX),
+            best_node: None,
         }
     }
 
@@ -83,7 +83,7 @@ impl<'a> Dijkstra<'a> {
         self.touched_nodes.push(target);
 
         // Best node
-        self.best_node = (None, std::f64::MAX);
+        self.best_node = None;
     }
 
     fn run(&mut self, source: usize, target: usize, alpha: Preference) -> Option<DijkstraResult> {
@@ -100,8 +100,8 @@ impl<'a> Dijkstra<'a> {
         }
 
         match self.best_node {
-            (None, _) => None,
-            (Some(node_id), total_cost) => {
+            None => None,
+            Some((node_id, total_cost)) => {
                 /*
                     println!(
                     "Found path with cost {:?} in {:?}ms with {:?} nodes popped",
@@ -151,15 +151,17 @@ impl<'a> Dijkstra<'a> {
         if total_cost > my_costs[node_id] {
             return;
         };
-        if total_cost > self.best_node.1 {
+        let best_node_cost = self.best_node.unwrap_or((0, std::f64::MAX)).1;
+
+        if total_cost > best_node_cost {
             *found_best = true;
             return;
         }
         if other_costs[node_id] != std::f64::MAX {
             let merged_cost = total_cost + other_costs[node_id];
-            if merged_cost < self.best_node.1 {
+            if merged_cost < best_node_cost {
                 // let merged_cost_vector = add_edge_costs(costs, other_costs[node_id].0);
-                self.best_node = (Some(node_id), merged_cost);
+                self.best_node = Some((node_id, merged_cost));
             }
         }
 
