@@ -32,7 +32,7 @@ impl Path {
     pub fn get_subpath_costs(&self, graph: &Graph, start: usize, end: usize) -> Costs {
         let edges = &self.edges[start..end];
         edges.iter().fold([0.0; EDGE_COST_DIMENSION], |acc, edge| {
-            add_edge_costs(acc, graph.edges[*edge].edge_costs)
+            add_edge_costs(&acc, &graph.edges[*edge].edge_costs)
         })
     }
 }

@@ -10,7 +10,7 @@ pub fn costs_by_alpha(costs: &Costs, alpha: &Preference) -> f64 {
         .fold(0.0, |acc, (cost, factor)| acc + cost * factor)
 }
 
-pub fn add_edge_costs(a: Costs, b: Costs) -> Costs {
+pub fn add_edge_costs(a: &Costs, b: &Costs) -> Costs {
     let mut result = [0.0; EDGE_COST_DIMENSION];
     a.iter()
         .zip(b.iter())
@@ -27,7 +27,7 @@ mod tests {
     fn test_add_edge_costs() {
         let a = [1.5, 2.0, 0.7, 1.3];
         let b = [1.3, 0.1, 0.3, 0.3];
-        let result = add_edge_costs(a, b);
+        let result = add_edge_costs(&a, &b);
         assert_eq!([2.8, 2.1, 1.0, 1.6], result);
     }
 }

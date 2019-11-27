@@ -196,7 +196,7 @@ impl<'a> Dijkstra<'a> {
         // backwards
         while let Some(edge_id) = previous_edge {
             edges.push(edge_id);
-            costs = add_edge_costs(self.graph.edges[edge_id].edge_costs, costs);
+            costs = add_edge_costs(&self.graph.edges[edge_id].edge_costs, &costs);
             previous_edge = self.previous_f[self.graph.edges[edge_id].source_id];
         }
         edges.reverse();
@@ -204,7 +204,7 @@ impl<'a> Dijkstra<'a> {
         // forwards
         while let Some(edge_id) = successive_edge {
             edges.push(edge_id);
-            costs = add_edge_costs(self.graph.edges[edge_id].edge_costs, costs);
+            costs = add_edge_costs(&self.graph.edges[edge_id].edge_costs, &costs);
             successive_edge = self.previous_b[self.graph.edges[edge_id].target_id];
         }
         (edges, costs)
