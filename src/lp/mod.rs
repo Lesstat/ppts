@@ -68,7 +68,7 @@ impl<'a> PreferenceEstimator<'a> {
             if &path.nodes[source_idx..=target_idx] == result.nodes.as_slice() {
                 // Catch case paths are equal, but have slightly different costs (precision issue)
                 return Some(alpha);
-            } else if result.user_split.get_total_cost() >= costs_by_alpha(costs, alpha) {
+            } else if result.user_split.get_total_cost() >= costs_by_alpha(&costs, &alpha) {
                 // println!(
                 //     "Shouldn't happen: result: {:?}; user: {:?}",
                 //     result.user_split.get_total_cost(),

@@ -96,7 +96,7 @@ impl<'a> Dijkstra<'a> {
             if self.found_best_f && self.found_best_b {
                 break;
             }
-            self.process_state(candidate, alpha);
+            self.process_state(candidate, &alpha);
         }
 
         match self.best_node {
@@ -124,7 +124,7 @@ impl<'a> Dijkstra<'a> {
         }
     }
 
-    fn process_state(&mut self, candidate: State, alpha: Preference) {
+    fn process_state(&mut self, candidate: State, alpha: &Preference) {
         let State {
             node_id,
             total_cost,
@@ -171,7 +171,7 @@ impl<'a> Dijkstra<'a> {
         };
         for half_edge in edges {
             let next_node = half_edge.target_id;
-            let next_total_cost = total_cost + costs_by_alpha(half_edge.edge_costs, alpha);
+            let next_total_cost = total_cost + costs_by_alpha(&half_edge.edge_costs, &alpha);
 
             if next_total_cost < my_costs[next_node] {
                 my_costs[next_node] = next_total_cost;

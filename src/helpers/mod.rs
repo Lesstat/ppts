@@ -3,7 +3,7 @@ use crate::EDGE_COST_DIMENSION;
 pub type Preference = [f64; EDGE_COST_DIMENSION];
 pub type Costs = [f64; EDGE_COST_DIMENSION];
 
-pub fn costs_by_alpha(costs: Costs, alpha: Preference) -> f64 {
+pub fn costs_by_alpha(costs: &Costs, alpha: &Preference) -> f64 {
     costs
         .iter()
         .zip(alpha.iter())
