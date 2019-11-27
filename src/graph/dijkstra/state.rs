@@ -46,8 +46,3 @@ impl std::cmp::PartialOrd for State {
         Some(self.cmp(other))
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-}

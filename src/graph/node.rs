@@ -9,8 +9,3 @@ impl Node {
         Node { id, ch_level }
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-}

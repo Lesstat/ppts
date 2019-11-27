@@ -103,13 +103,13 @@ impl<'a> Dijkstra<'a> {
             (None, _, _) => None,
             (Some(node_id), costs, total_cost) => {
                 /*
-                println!(
+                    println!(
                     "Found path with cost {:?} in {:?}ms with {:?} nodes popped",
                     total_cost,
                     now.elapsed().as_millis(),
                     n_popped
                 );
-                */
+                     */
                 // println!(
                 //     "Found path with dim_costs {:?} and cost {:?}",
                 //     costs, total_cost
@@ -245,9 +245,8 @@ pub fn find_path(
 
 #[cfg(test)]
 mod tests {
-    use crate::graph::{parse_graph_file, Graph};
-
     use super::*;
+    use crate::graph::{parse_graph_file, Graph};
 
     fn get_graph() -> Graph {
         parse_graph_file("./src/test_graphs/testGraph").unwrap()
@@ -256,18 +255,6 @@ mod tests {
     fn get_conc_graph() -> Graph {
         parse_graph_file("./src/test_graphs/concTestGraph").unwrap()
     }
-
-    #[test]
-    fn from_isolated() {}
-
-    #[test]
-    fn to_isolated() {}
-
-    #[test]
-    fn to_one_way() {}
-
-    #[test]
-    fn from_one_way() {}
 
     #[test]
     fn normal_case() {

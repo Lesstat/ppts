@@ -1,4 +1,5 @@
 use crate::helpers::Costs;
+use crate::EDGE_COST_DIMENSION;
 
 #[derive(Debug)]
 pub struct Edge {
@@ -7,6 +8,14 @@ pub struct Edge {
     pub target_id: usize,
     pub edge_costs: Costs,
     pub replaced_edges: Option<(usize, usize)>,
+}
+
+pub fn parse_costs(tokens: &[&str]) -> Costs {
+    let mut edge_costs: Costs = [0.0; EDGE_COST_DIMENSION];
+    for (index, token) in tokens.iter().enumerate() {
+        edge_costs[index] = token.parse().unwrap();
+    }
+    edge_costs
 }
 
 impl Edge {
@@ -42,9 +51,4 @@ impl HalfEdge {
             edge_costs,
         }
     }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
 }

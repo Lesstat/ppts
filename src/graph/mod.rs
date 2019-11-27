@@ -181,3 +181,69 @@ impl Graph {
         vec![edge]
     }
 }
+
+pub fn parse_graph_file(file_path: &str) -> Result<Graph, Box<dyn std::error::Error>> {
+    use crate::EDGE_COST_DIMENSION;
+    use std::fs::File;
+    use std::io::{BufRead, BufReader};
+
+    println!("Parsing graph...");
+    let mut nodes: Vec<Node> = Vec::new();
+    let mut edges: Vec<Edge> = Vec::new();
+    let file = File::open(file_path)?;
+    let reader = BufReader::new(file);
+    let mut lines = reader.lines();
+    for _i in 0..4 {
+        // comments and blanks
+        lines.next();
+    }
+    let cost_dim: usize = lines.next().expect("No edge cost dim given")?.parse()?;
+    assert_eq!(EDGE_COST_DIMENSION, cost_dim);
+    let num_of_nodes = lines
+        .next()
+        .expect("Number of nodes not present in file")?
+        .parse()?;
+    let num_of_edges = lines
+        .next()
+        .expect("Number of edges not present in file")?
+        .parse()?;
+
+    let mut parsed_nodes: usize = 0;
+    let mut parsed_edges: usize = 0;
+    while let Some(Ok(line)) = lines.next() {
+        let tokens: Vec<&str> = line.split_whitespace().collect();
+        if tokens[0] == "#" || tokens[0] == "\n" {
+            continue;
+        }
+        if parsed_nodes < num_of_nodes {
+            nodes.push(Node::new(
+                tokens[0].parse()?,
+                // tokens[2].parse()?,
+                // tokens[3].parse()?,
+                // tokens[4].parse()?,
+                tokens[5].parse()?,
+            ));
+            parsed_nodes += 1;
+        } else if parsed_edges < num_of_edges {
+            let replaced_edges = if tokens[tokens.len() - 2] == "-1" {
+                None
+            } else {
+                Some((
+                    tokens[tokens.len() - 2].parse()?,
+                    tokens[tokens.len() - 1].parse()?,
+                ))
+            };
+            edges.push(Edge::new(
+                parsed_edges,
+                tokens[0].parse()?,
+                tokens[1].parse()?,
+                edge::parse_costs(&tokens[2..tokens.len() - 2]),
+                replaced_edges,
+            ));
+            parsed_edges += 1;
+        } else {
+            panic!("Something doesn't add up with the amount of nodes and edges in graph file");
+        }
+    }
+    Ok(Graph::new(nodes, edges))
+}
