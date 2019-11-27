@@ -30,15 +30,15 @@ pub struct Dijkstra<'a> {
     found_best_f: bool,
 
     // Best dist to/from node
-    pub cost_f: Vec<(Costs, f64)>,
-    pub cost_b: Vec<(Costs, f64)>,
+    pub cost_f: Vec<f64>,
+    pub cost_b: Vec<f64>,
 
     // Best edge to/from node
     pub previous_f: Vec<Option<usize>>,
     pub previous_b: Vec<Option<usize>>,
 
     // (node_id, cost array, total_cost)
-    best_node: (Option<usize>, Costs, f64),
+    best_node: (Option<usize>, f64),
 }
 
 impl<'a> Dijkstra<'a> {
@@ -50,11 +50,11 @@ impl<'a> Dijkstra<'a> {
             touched_nodes: Vec::new(),
             found_best_b: false,
             found_best_f: false,
-            cost_f: vec![([0.0; EDGE_COST_DIMENSION], std::f64::MAX); num_of_nodes],
-            cost_b: vec![([0.0; EDGE_COST_DIMENSION], std::f64::MAX); num_of_nodes],
+            cost_f: vec![std::f64::MAX; num_of_nodes],
+            cost_b: vec![std::f64::MAX; num_of_nodes],
             previous_f: vec![None; num_of_nodes],
             previous_b: vec![None; num_of_nodes],
-            best_node: (None, [0.0; EDGE_COST_DIMENSION], std::f64::MAX),
+            best_node: (None, std::f64::MAX),
         }
     }
 
@@ -66,8 +66,8 @@ impl<'a> Dijkstra<'a> {
 
         // Touched nodes
         for node_id in &self.touched_nodes {
-            self.cost_f[*node_id] = ([0.0; EDGE_COST_DIMENSION], std::f64::MAX);
-            self.cost_b[*node_id] = ([0.0; EDGE_COST_DIMENSION], std::f64::MAX);
+            self.cost_f[*node_id] = std::f64::MAX;
+            self.cost_b[*node_id] = std::f64::MAX;
             self.previous_f[*node_id] = None;
             self.previous_b[*node_id] = None;
         }
@@ -77,13 +77,13 @@ impl<'a> Dijkstra<'a> {
         self.found_best_f = false;
 
         // Node states
-        self.cost_f[source].1 = 0.0;
-        self.cost_b[target].1 = 0.0;
+        self.cost_f[source] = 0.0;
+        self.cost_b[target] = 0.0;
         self.touched_nodes.push(source);
         self.touched_nodes.push(target);
 
         // Best node
-        self.best_node = (None, [0.0; EDGE_COST_DIMENSION], std::f64::MAX);
+        self.best_node = (None, std::f64::MAX);
     }
 
     fn run(&mut self, source: usize, target: usize, alpha: Preference) -> Option<DijkstraResult> {
@@ -100,8 +100,8 @@ impl<'a> Dijkstra<'a> {
         }
 
         match self.best_node {
-            (None, _, _) => None,
-            (Some(node_id), costs, total_cost) => {
+            (None, _) => None,
+            (Some(node_id), total_cost) => {
                 /*
                     println!(
                     "Found path with cost {:?} in {:?}ms with {:?} nodes popped",
@@ -114,7 +114,7 @@ impl<'a> Dijkstra<'a> {
                 //     "Found path with dim_costs {:?} and cost {:?}",
                 //     costs, total_cost
                 // );
-                let edges = self.make_edge_path(node_id);
+                let (edges, costs) = self.make_edge_path(node_id);
                 Some(DijkstraResult {
                     edges,
                     costs,
@@ -148,18 +148,18 @@ impl<'a> Dijkstra<'a> {
             previous = &mut self.previous_b;
         };
 
-        if total_cost > my_costs[node_id].1 {
+        if total_cost > my_costs[node_id] {
             return;
         };
-        if total_cost > self.best_node.2 {
+        if total_cost > self.best_node.1 {
             *found_best = true;
             return;
         }
-        if other_costs[node_id].1 != std::f64::MAX {
-            let merged_cost = total_cost + other_costs[node_id].1;
-            if merged_cost < self.best_node.2 {
-                let merged_cost_vector = add_edge_costs(costs, other_costs[node_id].0);
-                self.best_node = (Some(node_id), merged_cost_vector, merged_cost);
+        if other_costs[node_id] != std::f64::MAX {
+            let merged_cost = total_cost + other_costs[node_id];
+            if merged_cost < self.best_node.1 {
+                // let merged_cost_vector = add_edge_costs(costs, other_costs[node_id].0);
+                self.best_node = (Some(node_id), merged_cost);
             }
         }
 
@@ -173,8 +173,8 @@ impl<'a> Dijkstra<'a> {
             let next_costs = add_edge_costs(costs, half_edge.edge_costs);
             let next_total_cost = total_cost + costs_by_alpha(half_edge.edge_costs, alpha);
 
-            if next_total_cost < my_costs[next_node].1 {
-                my_costs[next_node] = (next_costs, next_total_cost);
+            if next_total_cost < my_costs[next_node] {
+                my_costs[next_node] = next_total_cost;
                 previous[next_node] = Some(half_edge.edge_id);
                 self.touched_nodes.push(next_node);
                 self.candidates.push(State {
@@ -187,14 +187,17 @@ impl<'a> Dijkstra<'a> {
         }
     }
 
-    fn make_edge_path(&self, connector: usize) -> Vec<usize> {
+    fn make_edge_path(&self, connector: usize) -> (Vec<usize>, Costs) {
         let mut edges = Vec::new();
         let mut previous_edge = self.previous_f[connector];
         let mut successive_edge = self.previous_b[connector];
 
+        let mut costs = [0.0; EDGE_COST_DIMENSION];
+
         // backwards
         while let Some(edge_id) = previous_edge {
             edges.push(edge_id);
+            costs = add_edge_costs(self.graph.edges[edge_id].edge_costs, costs);
             previous_edge = self.previous_f[self.graph.edges[edge_id].source_id];
         }
         edges.reverse();
@@ -202,9 +205,10 @@ impl<'a> Dijkstra<'a> {
         // forwards
         while let Some(edge_id) = successive_edge {
             edges.push(edge_id);
+            costs = add_edge_costs(self.graph.edges[edge_id].edge_costs, costs);
             successive_edge = self.previous_b[self.graph.edges[edge_id].target_id];
         }
-        edges
+        (edges, costs)
     }
 }
 
