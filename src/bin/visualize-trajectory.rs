@@ -107,6 +107,7 @@ fn create_properties(
     i: usize,
     p: &Preference,
 ) -> Option<serde_json::map::Map<String, serde_json::Value>> {
+    use serde_json::{Number, Value};
     let colors = [
         "#e41a1c", "#377eb8", "#4daf4a", "#984ea3", "#ff7f00", "#ffff33", "#a65628", "#f781bf",
         "#999999",
@@ -116,14 +117,20 @@ fn create_properties(
 
     let mut map = serde_json::map::Map::new();
 
+    map.insert("stroke".to_owned(), Value::String(colors[index].to_owned()));
+
     map.insert(
-        "stroke".to_owned(),
-        serde_json::Value::String(colors[index].to_owned()),
+        "stroke-opacity".to_owned(),
+        Value::Number(Number::from_f64(0.5).unwrap()),
     );
 
     map.insert(
+        "stroke-width".to_owned(),
+        Value::Number(Number::from_f64(5.0).unwrap()),
+    );
+    map.insert(
         "preference".to_owned(),
-        serde_json::Value::String(format!("{:?}", p).to_owned()),
+        Value::String(format!("{:?}", p).to_owned()),
     );
 
     Some(map)
