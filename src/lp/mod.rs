@@ -20,7 +20,6 @@ impl<'a> PreferenceEstimator<'a> {
     pub fn new(graph: &'a Graph) -> Self {
         let mut problem = LpProblem::new("Find Preference", LpObjective::Maximize);
 
-        // Variables
         let mut variables = Vec::new();
 
         for tag in ALPHABET.chars().take(EDGE_COST_DIMENSION) {
@@ -43,32 +42,12 @@ impl<'a> PreferenceEstimator<'a> {
         }
     }
 
-    /*
-        pub fn calc_preference(
-        &mut self,
-        driven_routes: &[Path],
-        alpha: Preference,
-    ) -> Option<Preference> {
-        let current_feasible = self.check_feasibility(driven_routes, alpha);
-        if current_feasible {
-        return Some(alpha);
-    }
-        while let Some(alpha) = self.solve_lp() {
-        let feasible = self.check_feasibility(driven_routes, alpha);
-        if feasible {
-        return Some(alpha);
-    }
-    }
-        None
-    }
-         */
-
     pub fn calc_preference(
         &mut self,
         dijkstra: &mut Dijkstra,
         path: &Path,
-        source_idx: usize,
-        target_idx: usize,
+        source_idx: u32,
+        target_idx: u32,
     ) -> Option<Preference> {
         let costs = path.get_subpath_costs(self.graph, source_idx, target_idx);
 
@@ -89,7 +68,7 @@ impl<'a> PreferenceEstimator<'a> {
             if &path.nodes[source_idx..=target_idx] == result.nodes.as_slice() {
                 // Catch case paths are equal, but have slightly different costs (precision issue)
                 return Some(alpha);
-            } else if result.user_split.get_total_cost() >= costs_by_alpha(costs, alpha) {
+            } else if result.user_split.get_total_cost() >= costs_by_alpha(&costs, &alpha) {
                 // println!(
                 //     "Shouldn't happen: result: {:?}; user: {:?}",
                 //     result.user_split.get_total_cost(),
@@ -123,47 +102,7 @@ impl<'a> PreferenceEstimator<'a> {
         }
     }
 
-    /*
-        fn check_feasibility(&mut self, driven_routes: &[Path], alpha: Preference) -> bool {
-        let mut all_explained = true;
-        for route in driven_routes {
-        let source = route.nodes[0];
-        let target = route.nodes[route.nodes.len() - 1];
-        let result = self
-        .graph
-        .find_shortest_path(vec![source, target], alpha)
-        .unwrap();
-        if route.nodes == result.nodes {
-        println!("Paths are equal, proceed with next route");
-    } else if costs_by_alpha(route.costs, alpha) > result.total_cost {
-        all_explained = false;
-        println!(
-        "Not explained, {} > {}",
-        costs_by_alpha(route.costs, alpha),
-        result.total_cost
-    );
-        let new_delta = LpContinuous::new(&format!("delta{}", self.deltas.len()));
-        self.problem += new_delta.ge(0);
-        self.problem += new_delta.clone();
-        self.deltas.push(new_delta.clone());
-        self.problem += (0..EDGE_COST_DIMENSION)
-        .fold(LpExpression::ConsCont(new_delta), |acc, index| {
-        acc + LpExpression::ConsCont(self.variables[index].clone())
-         * ((route.costs[index] - result.costs[index]) as f32)
-    })
-        .le(0);
-    }
-    }
-        all_explained
-    }
-         */
-
     fn solve_lp(&self) -> Option<Preference> {
-        /*
-        self.problem
-        .write_lp("lp_formulation")
-        .expect("Could not write LP to file");
-         */
         match self.solver.run(&self.problem) {
             Ok(solution) => {
                 // println!("Solver Status: {:?}", status);
@@ -201,9 +140,4 @@ impl<'a> PreferenceEstimator<'a> {
             }
         }
     }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
 }

@@ -18,3 +18,4 @@ lp_formulation
 
 # Database files
 database
+/resources/*
