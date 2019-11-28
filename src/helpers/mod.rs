@@ -1,5 +1,7 @@
 use crate::EDGE_COST_DIMENSION;
 
+use std::ops::{Deref, DerefMut, Index};
+
 pub type Preference = [f64; EDGE_COST_DIMENSION];
 pub type Costs = [f64; EDGE_COST_DIMENSION];
 
@@ -17,6 +19,39 @@ pub fn add_edge_costs(a: &Costs, b: &Costs) -> Costs {
         .enumerate()
         .for_each(|(index, (first, second))| result[index] = first + second);
     result
+}
+
+#[derive(Debug)]
+pub struct MyVec<T>(pub Vec<T>);
+
+impl<T> Index<u32> for MyVec<T> {
+    type Output = T;
+
+    fn index(&self, idx: u32) -> &Self::Output {
+        &self.0[idx as usize]
+    }
+}
+
+impl<T> Index<usize> for MyVec<T> {
+    type Output = T;
+
+    fn index(&self, idx: usize) -> &Self::Output {
+        &self.0[idx]
+    }
+}
+
+impl<T> Deref for MyVec<T> {
+    type Target = Vec<T>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl<T> DerefMut for MyVec<T> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
 }
 
 #[cfg(test)]
