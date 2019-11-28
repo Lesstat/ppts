@@ -5,7 +5,7 @@ use dijkstra::Dijkstra;
 pub use node::Node;
 use path::{Path, PathSplit};
 
-use crate::helpers::Preference;
+use crate::helpers::{MyVec, Preference};
 use crate::lp::PreferenceEstimator;
 
 pub mod dijkstra;
@@ -15,21 +15,24 @@ pub mod path;
 
 #[derive(Debug)]
 pub struct Graph {
-    pub nodes: Vec<Node>,
-    pub edges: Vec<Edge>,
-    offsets_in: Vec<usize>,
-    offsets_out: Vec<usize>,
-    half_edges_in: Vec<HalfEdge>,
-    half_edges_out: Vec<HalfEdge>,
+    pub nodes: MyVec<Node>,
+    pub edges: MyVec<Edge>,
+    offsets_in: MyVec<u32>,
+    offsets_out: MyVec<u32>,
+    half_edges_in: MyVec<HalfEdge>,
+    half_edges_out: MyVec<HalfEdge>,
 }
 
 impl Graph {
-    pub fn new(mut nodes: Vec<Node>, mut edges: Vec<Edge>) -> Graph {
+    pub fn new(nodes: Vec<Node>, edges: Vec<Edge>) -> Graph {
         println!("Constructing graph...");
-        let mut offsets_out: Vec<usize> = vec![0; nodes.len() + 1];
-        let mut offsets_in: Vec<usize> = vec![0; nodes.len() + 1];
-        let mut half_edges_out: Vec<HalfEdge> = Vec::new();
-        let mut half_edges_in: Vec<HalfEdge> = Vec::new();
+        let mut nodes = MyVec(nodes);
+        let mut edges = MyVec(edges);
+        let offsets_inner = vec![0; nodes.len() + 1];
+        let mut offsets_out = MyVec(offsets_inner.clone());
+        let mut offsets_in = MyVec(offsets_inner);
+        let mut half_edges_out = MyVec(Vec::new());
+        let mut half_edges_in = MyVec(Vec::new());
 
         // sort nodes by id
         nodes.sort_by(|a, b| a.id.cmp(&b.id));
@@ -75,12 +78,12 @@ impl Graph {
     pub fn find_shortest_path(
         &self,
         dijkstra: &mut Dijkstra,
-        id: usize,
-        include: Vec<usize>,
+        id: u32,
+        include: Vec<u32>,
         alpha: Preference,
     ) -> Option<Path> {
         if let Some(result) = dijkstra::find_path(dijkstra, &include, alpha) {
-            let unpacked_edges: Vec<Vec<usize>> = result
+            let unpacked_edges: Vec<Vec<u32>> = result
                 .edges
                 .iter()
                 .map(|subpath_edges| {
@@ -90,10 +93,15 @@ impl Graph {
                         .collect()
                 })
                 .collect();
-            let cuts = unpacked_edges.iter().map(|edges| edges.len()).collect();
+            let cuts = MyVec(
+                unpacked_edges
+                    .iter()
+                    .map(|edges| edges.len() as u32)
+                    .collect(),
+            );
 
-            let edges: Vec<usize> = unpacked_edges.into_iter().flatten().collect();
-            let mut nodes: Vec<usize> = edges
+            let edges: Vec<u32> = unpacked_edges.into_iter().flatten().collect();
+            let mut nodes: Vec<u32> = edges
                 .iter()
                 .map(|edge| self.edges[*edge].source_id)
                 .collect();
@@ -101,11 +109,11 @@ impl Graph {
 
             return Some(Path {
                 id,
-                nodes,
-                edges,
+                nodes: MyVec(nodes),
+                edges: MyVec(edges),
                 user_split: PathSplit {
                     cuts,
-                    alphas: vec![alpha],
+                    alphas: MyVec(vec![alpha]),
                     dimension_costs: result.dimension_costs,
                     costs_by_alpha: result.costs_by_alpha,
                 },
@@ -117,10 +125,10 @@ impl Graph {
     }
 
     pub fn find_preference(&self, path: &mut Path) {
-        let path_length = path.nodes.len();
-        let mut cuts = Vec::new();
-        let mut alphas = Vec::new();
-        let mut start: usize = 0;
+        let path_length = path.nodes.len() as u32;
+        let mut cuts = MyVec::new();
+        let mut alphas = MyVec::new();
+        let mut start = 0u32;
         let mut dijkstra = Dijkstra::new(self);
 
         while start < path_length - 1 {
@@ -154,8 +162,8 @@ impl Graph {
             start = best_cut;
             // println!("start at end of loop: {}", start);
         }
-        let dimension_costs = Vec::new();
-        let costs_by_alpha = Vec::new();
+        let dimension_costs = MyVec::new();
+        let costs_by_alpha = MyVec::new();
         path.algo_split = Some(PathSplit {
             cuts,
             alphas,
@@ -164,15 +172,15 @@ impl Graph {
         });
     }
 
-    fn get_ch_edges_out(&self, node_id: usize) -> &[HalfEdge] {
+    fn get_ch_edges_out(&self, node_id: u32) -> &[HalfEdge] {
         &self.half_edges_out[self.offsets_out[node_id]..self.offsets_out[node_id + 1]]
     }
 
-    fn get_ch_edges_in(&self, node_id: usize) -> &[HalfEdge] {
+    fn get_ch_edges_in(&self, node_id: u32) -> &[HalfEdge] {
         &self.half_edges_in[self.offsets_in[node_id]..self.offsets_in[node_id + 1]]
     }
 
-    fn unpack_edge(&self, edge: usize) -> Vec<usize> {
+    fn unpack_edge(&self, edge: u32) -> Vec<u32> {
         if let Some((edge1, edge2)) = self.edges[edge].replaced_edges {
             let mut first = self.unpack_edge(edge1);
             first.extend(self.unpack_edge(edge2).iter());
@@ -209,7 +217,7 @@ pub fn parse_graph_file(file_path: &str) -> Result<Graph, Box<dyn std::error::Er
         .parse()?;
 
     let mut parsed_nodes: usize = 0;
-    let mut parsed_edges: usize = 0;
+    let mut parsed_edges: u32 = 0;
     while let Some(Ok(line)) = lines.next() {
         let tokens: Vec<&str> = line.split_whitespace().collect();
         if tokens[0] == "#" || tokens[0] == "\n" {

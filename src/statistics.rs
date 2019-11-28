@@ -1,4 +1,4 @@
-use crate::helpers::Preference;
+use crate::helpers::{MyVec, Preference};
 use crate::trajectories::Trajectory;
 
 use std::path::Path;
@@ -11,9 +11,9 @@ pub struct SplittingStatistics {
     pub trip_id: i64,
     vehicle_id: i64,
     trajectory_length: usize,
-    pub removed_self_loop_indices: Vec<usize>,
-    pub preferences: Vec<Preference>,
-    pub cuts: Vec<usize>,
+    pub removed_self_loop_indices: MyVec<u32>,
+    pub preferences: MyVec<Preference>,
+    pub cuts: MyVec<u32>,
     pub run_time: usize,
 }
 

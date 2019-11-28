@@ -3,11 +3,11 @@ use crate::EDGE_COST_DIMENSION;
 
 #[derive(Debug)]
 pub struct Edge {
-    pub id: usize,
-    pub source_id: usize,
-    pub target_id: usize,
+    pub id: u32,
+    pub source_id: u32,
+    pub target_id: u32,
     pub edge_costs: Costs,
-    pub replaced_edges: Option<(usize, usize)>,
+    pub replaced_edges: Option<(u32, u32)>,
 }
 
 pub fn parse_costs(tokens: &[&str]) -> Costs {
@@ -20,11 +20,11 @@ pub fn parse_costs(tokens: &[&str]) -> Costs {
 
 impl Edge {
     pub fn new(
-        id: usize,
-        source_id: usize,
-        target_id: usize,
+        id: u32,
+        source_id: u32,
+        target_id: u32,
         edge_costs: Costs,
-        replaced_edges: Option<(usize, usize)>,
+        replaced_edges: Option<(u32, u32)>,
     ) -> Edge {
         Edge {
             id,
@@ -38,13 +38,13 @@ impl Edge {
 
 #[derive(Debug)]
 pub struct HalfEdge {
-    pub edge_id: usize,
-    pub target_id: usize,
+    pub edge_id: u32,
+    pub target_id: u32,
     pub edge_costs: Costs,
 }
 
 impl HalfEdge {
-    pub fn new(edge_id: usize, target_id: usize, edge_costs: Costs) -> HalfEdge {
+    pub fn new(edge_id: u32, target_id: u32, edge_costs: Costs) -> HalfEdge {
         HalfEdge {
             edge_id,
             target_id,
