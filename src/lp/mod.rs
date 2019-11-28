@@ -46,8 +46,8 @@ impl<'a> PreferenceEstimator<'a> {
         &mut self,
         dijkstra: &mut Dijkstra,
         path: &Path,
-        source_idx: usize,
-        target_idx: usize,
+        source_idx: u32,
+        target_idx: u32,
     ) -> Option<Preference> {
         let costs = path.get_subpath_costs(self.graph, source_idx, target_idx);
 

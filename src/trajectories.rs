@@ -1,6 +1,7 @@
 use crate::graph::path::{Path, PathSplit};
 use crate::graph::Graph;
 use crate::graphml::EdgeLookup;
+use crate::helpers::MyVec;
 
 use serde::Deserialize;
 use serde_json::from_reader;
@@ -11,7 +12,7 @@ use std::string::ToString;
 pub struct Trajectory {
     pub trip_id: i64,
     pub vehicle_id: i64,
-    pub path: Vec<i64>,
+    pub path: MyVec<i64>,
 }
 
 pub fn check_trajectory(tra: &Trajectory, graph: &Graph, edge_lookup: &EdgeLookup) -> bool {
@@ -41,8 +42,8 @@ pub fn read_trajectories<P: AsRef<std::path::Path>>(
 
 impl Trajectory {
     pub fn to_path(&self, graph: &Graph, edge_lookup: &EdgeLookup) -> Path {
-        let id = self.trip_id as usize;
-        let edges: Vec<usize> = self
+        let id = self.trip_id as u32;
+        let edges: Vec<u32> = self
             .path
             .iter()
             .map(|id| edge_lookup[&id.to_string()])
@@ -51,33 +52,33 @@ impl Trajectory {
         let first_node = edges.iter().take(1).map(|e| &graph.edges[*e].source_id);
         let rest_nodes = edges.iter().map(|e| &graph.edges[*e].target_id);
 
-        let nodes: Vec<usize> = first_node.chain(rest_nodes).copied().collect();
+        let nodes: Vec<u32> = first_node.chain(rest_nodes).copied().collect();
 
         let algo_split = None;
         let total_dimension_costs = [0.0; super::EDGE_COST_DIMENSION];
 
         let user_split = PathSplit {
-            cuts: Vec::new(),
-            alphas: Vec::new(),
-            dimension_costs: Vec::new(),
-            costs_by_alpha: Vec::new(),
+            cuts: MyVec::new(),
+            alphas: MyVec::new(),
+            dimension_costs: MyVec::new(),
+            costs_by_alpha: MyVec::new(),
         };
         let node_count = nodes.len();
         let mut path = Path {
             id,
-            nodes,
-            edges,
+            nodes: MyVec(nodes),
+            edges: MyVec(edges),
             user_split,
             algo_split,
             total_dimension_costs,
         };
 
-        path.total_dimension_costs = path.get_subpath_costs(graph, 0, node_count - 1);
+        path.total_dimension_costs = path.get_subpath_costs(graph, 0, node_count as u32 - 1);
 
         path
     }
 
-    pub fn filter_out_self_loops(&mut self, graph: &Graph, edge_lookup: &EdgeLookup) -> Vec<usize> {
+    pub fn filter_out_self_loops(&mut self, graph: &Graph, edge_lookup: &EdgeLookup) -> MyVec<u32> {
         let (normal, self_loops): (Vec<_>, Vec<_>) =
             self.path.iter().enumerate().partition(|(_, e)| {
                 let e_idx = edge_lookup[&e.to_string()];
@@ -85,8 +86,8 @@ impl Trajectory {
                 edge.source_id != edge.target_id
             });
 
-        let indices = self_loops.into_iter().map(|(i, _)| i).collect();
-        self.path = normal.into_iter().map(|(_, e)| e).copied().collect();
+        let indices = MyVec(self_loops.into_iter().map(|(i, _)| i as u32).collect());
+        self.path = MyVec(normal.into_iter().map(|(_, e)| e).copied().collect());
 
         indices
     }

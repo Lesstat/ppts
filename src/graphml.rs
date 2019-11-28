@@ -29,7 +29,7 @@ pub struct GraphmlAttribute {
     pub attribute_type: AttributeType,
 }
 
-pub type EdgeLookup = HashMap<String, usize>;
+pub type EdgeLookup = HashMap<String, u32>;
 
 impl<'a> GraphmlAttribute {
     fn new(
@@ -143,7 +143,7 @@ pub fn read_graphml<P: AsRef<Path>>(file_path: P) -> Result<GraphData, Box<dyn E
             for d in edge.descendants().filter(|d| d.has_tag_name("data")) {
                 let key = d.attribute("key").unwrap();
                 if "name" == keys[key].name {
-                    return (d.text().unwrap().to_owned(), id);
+                    return (d.text().unwrap().to_owned(), id as u32);
                 }
             }
             panic!("could not find name for edge")
@@ -157,7 +157,7 @@ pub fn read_graphml<P: AsRef<Path>>(file_path: P) -> Result<GraphData, Box<dyn E
         .descendants()
         .filter(|n| n.has_tag_name("edge"))
         .enumerate()
-        .map(|(id, e)| parse_edge_from_xml(id, &e, &keys, &edge_lookup))
+        .map(|(id, e)| parse_edge_from_xml(id as u32, &e, &keys, &edge_lookup))
         .collect();
 
     println!("parsed {} edges", edges.len());
@@ -170,7 +170,7 @@ pub fn read_graphml<P: AsRef<Path>>(file_path: P) -> Result<GraphData, Box<dyn E
 }
 
 fn parse_edge_from_xml<'a, 'input>(
-    id: usize,
+    id: u32,
     node: &roxmltree::Node<'a, 'input>,
     keys: &KeyMap,
     edge_lookup: &EdgeLookup,
@@ -227,7 +227,7 @@ fn parse_edge_from_xml<'a, 'input>(
     }
 
     let skips = if edge_a >= 0 && edge_b >= 0 {
-        Some((edge_a as usize, edge_b as usize))
+        Some((edge_a as u32, edge_b as u32))
     } else {
         None
     };
@@ -235,7 +235,7 @@ fn parse_edge_from_xml<'a, 'input>(
     Edge::new(id, source, target, costs, skips)
 }
 
-fn parse_node_id(node_id: &str) -> usize {
+fn parse_node_id(node_id: &str) -> u32 {
     let tail: String = node_id.chars().skip(1).collect();
 
     tail.parse().expect("could not parse node id")

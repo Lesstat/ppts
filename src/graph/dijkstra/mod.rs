@@ -4,20 +4,20 @@ use state::Direction::{BACKWARD, FORWARD};
 use state::State;
 
 use crate::graph::Graph;
-use crate::helpers::{add_edge_costs, costs_by_alpha, Costs, Preference};
+use crate::helpers::{add_edge_costs, costs_by_alpha, Costs, MyVec, Preference};
 use crate::EDGE_COST_DIMENSION;
 
 mod state;
 
 pub struct HalfPath {
-    pub edges: Vec<Vec<usize>>,
-    pub dimension_costs: Vec<Costs>,
+    pub edges: MyVec<MyVec<u32>>,
+    pub dimension_costs: MyVec<Costs>,
     pub total_dimension_costs: Costs,
-    pub costs_by_alpha: Vec<f64>,
+    pub costs_by_alpha: MyVec<f64>,
 }
 
 pub struct DijkstraResult {
-    pub edges: Vec<usize>,
+    pub edges: MyVec<u32>,
     pub costs: Costs,
     pub total_cost: f64,
 }
@@ -25,20 +25,20 @@ pub struct DijkstraResult {
 pub struct Dijkstra<'a> {
     graph: &'a Graph,
     candidates: BinaryHeap<State>,
-    touched_nodes: Vec<usize>,
+    touched_nodes: MyVec<u32>,
     found_best_b: bool,
     found_best_f: bool,
 
     // Best dist to/from node
-    pub cost_f: Vec<f64>,
-    pub cost_b: Vec<f64>,
+    pub cost_f: MyVec<f64>,
+    pub cost_b: MyVec<f64>,
 
     // Best edge to/from node
-    pub previous_f: Vec<Option<usize>>,
-    pub previous_b: Vec<Option<usize>>,
+    pub previous_f: MyVec<Option<u32>>,
+    pub previous_b: MyVec<Option<u32>>,
 
     // (node_id, cost array, total_cost)
-    best_node: Option<(usize, f64)>,
+    best_node: Option<(u32, f64)>,
 }
 
 impl<'a> Dijkstra<'a> {
@@ -47,25 +47,25 @@ impl<'a> Dijkstra<'a> {
         Dijkstra {
             graph,
             candidates: BinaryHeap::new(),
-            touched_nodes: Vec::new(),
+            touched_nodes: MyVec(Vec::new()),
             found_best_b: false,
             found_best_f: false,
-            cost_f: vec![std::f64::MAX; num_of_nodes],
-            cost_b: vec![std::f64::MAX; num_of_nodes],
-            previous_f: vec![None; num_of_nodes],
-            previous_b: vec![None; num_of_nodes],
+            cost_f: MyVec(vec![std::f64::MAX; num_of_nodes]),
+            cost_b: MyVec(vec![std::f64::MAX; num_of_nodes]),
+            previous_f: MyVec(vec![None; num_of_nodes]),
+            previous_b: MyVec(vec![None; num_of_nodes]),
             best_node: None,
         }
     }
 
-    fn prepare(&mut self, source: usize, target: usize) {
+    fn prepare(&mut self, source: u32, target: u32) {
         // Candidates
         self.candidates = BinaryHeap::new();
         self.candidates.push(State::new(source, FORWARD));
         self.candidates.push(State::new(target, BACKWARD));
 
         // Touched nodes
-        for node_id in &self.touched_nodes {
+        for node_id in &self.touched_nodes.0 {
             self.cost_f[*node_id] = std::f64::MAX;
             self.cost_b[*node_id] = std::f64::MAX;
             self.previous_f[*node_id] = None;
@@ -86,7 +86,7 @@ impl<'a> Dijkstra<'a> {
         self.best_node = None;
     }
 
-    fn run(&mut self, source: usize, target: usize, alpha: Preference) -> Option<DijkstraResult> {
+    fn run(&mut self, source: u32, target: u32, alpha: Preference) -> Option<DijkstraResult> {
         self.prepare(source, target);
 
         // let now = Instant::now();
@@ -186,8 +186,8 @@ impl<'a> Dijkstra<'a> {
         }
     }
 
-    fn make_edge_path(&self, connector: usize) -> (Vec<usize>, Costs) {
-        let mut edges = Vec::new();
+    fn make_edge_path(&self, connector: u32) -> (MyVec<u32>, Costs) {
+        let mut edges = MyVec(Vec::new());
         let mut previous_edge = self.previous_f[connector];
         let mut successive_edge = self.previous_b[connector];
 
@@ -211,16 +211,12 @@ impl<'a> Dijkstra<'a> {
     }
 }
 
-pub fn find_path(
-    dijkstra: &mut Dijkstra,
-    include: &[usize],
-    alpha: Preference,
-) -> Option<HalfPath> {
+pub fn find_path(dijkstra: &mut Dijkstra, include: &[u32], alpha: Preference) -> Option<HalfPath> {
     // println!("=== Running Dijkstra search ===");
-    let mut edges = Vec::new();
-    let mut dimension_costs = Vec::new();
+    let mut edges = MyVec::new();
+    let mut dimension_costs = MyVec::new();
     let mut total_dimension_costs = [0.0; EDGE_COST_DIMENSION];
-    let mut costs_by_alpha = Vec::new();
+    let mut costs_by_alpha = MyVec::new();
 
     for win in include.windows(2) {
         if let Some(result) = dijkstra.run(win[0], win[1], alpha) {
@@ -288,9 +284,9 @@ mod tests {
 
         path = shortest_path.unwrap();
         path_conc = shortest_path_conc.unwrap();
-        assert_eq!(path.edges, vec![4, 7]);
+        assert_eq!(path.edges.0, vec![4, 7]);
         assert_eq!(path.total_cost, 2.0);
-        assert_eq!(path_conc.edges, vec![4, 7]);
+        assert_eq!(path_conc.edges.0, vec![4, 7]);
         assert_eq!(path_conc.total_cost, 2.0);
 
         // fourth query
@@ -301,9 +297,9 @@ mod tests {
 
         path = shortest_path.unwrap();
         path_conc = shortest_path_conc.unwrap();
-        assert_eq!(path.edges, vec![4, 7, 9, 12]);
+        assert_eq!(path.edges.0, vec![4, 7, 9, 12]);
         assert_eq!(path.total_cost, 4.0);
-        assert_eq!(path_conc.edges, vec![4, 21]);
+        assert_eq!(path_conc.edges.0, vec![4, 21]);
         assert_eq!(path_conc.total_cost, 4.0);
 
         // fifth query
@@ -314,9 +310,9 @@ mod tests {
 
         path = shortest_path.unwrap();
         path_conc = shortest_path_conc.unwrap();
-        assert_eq!(path.edges, vec![7, 9, 12]);
+        assert_eq!(path.edges.0, vec![7, 9, 12]);
         assert_eq!(path.total_cost, 3.0);
-        assert_eq!(path_conc.edges, vec![21]);
+        assert_eq!(path_conc.edges.0, vec![21]);
         assert_eq!(path_conc.total_cost, 3.0);
     }
 }

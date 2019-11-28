@@ -10,13 +10,13 @@ pub enum Direction {
 
 #[derive(PartialEq)]
 pub struct State {
-    pub node_id: usize,
+    pub node_id: u32,
     pub total_cost: f64,
     pub direction: Direction,
 }
 
 impl State {
-    pub fn new(node_id: usize, direction: Direction) -> Self {
+    pub fn new(node_id: u32, direction: Direction) -> Self {
         State {
             node_id,
             total_cost: 0.0,
