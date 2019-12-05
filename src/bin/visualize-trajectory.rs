@@ -1,9 +1,9 @@
+use preference_splitting::geojson::read_geojson_map;
 use preference_splitting::helpers::Preference;
 use preference_splitting::statistics::read_splitting_results;
 use preference_splitting::trajectories::read_trajectories;
 use preference_splitting::MyResult;
 
-use std::collections::HashMap;
 use std::env::args;
 use std::io::Write;
 
@@ -90,17 +90,6 @@ fn main() -> MyResult<()> {
 
     file.write_all(serde_json::to_string(&feature_collection)?.as_bytes())?;
     Ok(())
-}
-
-fn read_geojson_map<P: AsRef<std::path::Path>>(path: P) -> MyResult<HashMap<i64, Geometry>> {
-    let file = std::fs::File::open(path)?;
-    let file = std::io::BufReader::new(file);
-    let map: HashMap<i64, String> = serde_json::from_reader(file)?;
-
-    Ok(map
-        .iter()
-        .map(|(&i, s)| (i, serde_json::from_str(s).expect("could not parse geojson")))
-        .collect())
 }
 
 fn create_properties(
