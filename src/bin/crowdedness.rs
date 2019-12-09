@@ -4,6 +4,7 @@ use osmpbfreader::{OsmObj, OsmPbfReader};
 use preference_splitting::geojson::read_geojson_map;
 use preference_splitting::{MyError, MyResult};
 
+use std::collections::HashMap;
 use std::env::args;
 
 #[derive(Debug)]
@@ -32,6 +33,7 @@ fn main() -> MyResult<()> {
 
     let mut crowdedness_grid = CrowdednessGrid::new(grid_size);
 
+    println!("Determining relevant bounding box from street network");
     for geometry in geojson_map.values() {
         match geometry.value {
             Value::LineString(ref pos) => pos
@@ -44,6 +46,7 @@ fn main() -> MyResult<()> {
     let pbf_file = std::fs::File::open(pbf_path)?;
     let mut pbf = OsmPbfReader::new(pbf_file);
 
+    println!("Collecting nodes from PBF file");
     pbf.iter()
         .filter_map(|obj| {
             if let Ok(OsmObj::Node(n)) = obj {
@@ -54,7 +57,35 @@ fn main() -> MyResult<()> {
         })
         .for_each(|n| crowdedness_grid.add_crowd_point(n.lat(), n.lon()));
 
-    dbg!(crowdedness_grid);
+    println!("Calculate crowdedness per edge");
+    let crowdedness_assignment: HashMap<_, usize> = geojson_map
+        .iter()
+        .map(|(i, l)| match l.value {
+            Value::LineString(ref pos) => (
+                i,
+                pos.iter()
+                    .map(|p| crowdedness_grid.crowdedness(p[1], p[0]))
+                    .sum(),
+            ),
+            _ => (i, 0),
+        })
+        .collect();
+
+    println!("Normalize per edge costs");
+    let max_cost = *crowdedness_assignment
+        .values()
+        .max()
+        .expect("There are no edges");
+    let crowdedness_assignment: HashMap<_, Vec<f64>> = crowdedness_assignment
+        .into_iter()
+        .map(|(i, v)| (i, vec![v as f64 / max_cost as f64]))
+        .collect();
+
+    let outfile = std::fs::File::create("crowdedness.json")?;
+    let writer = std::io::BufWriter::new(outfile);
+
+    serde_json::to_writer(writer, &crowdedness_assignment)?;
+
     Ok(())
 }
 
@@ -94,10 +125,22 @@ impl CrowdednessGrid {
         let lat_offset = lat - self.min_lat;
         let lat_index = (lat_offset / lat_step).floor() as usize;
 
+        let lat_index = if lat_index == self.grid_size {
+            lat_index - 1
+        } else {
+            lat_index
+        };
+
         let lng_dist = self.max_lng - self.min_lng;
         let lng_step = lng_dist / self.grid_size as f64;
         let lng_offset = lng - self.min_lng;
         let lng_index = (lng_offset / lng_step).floor() as usize;
+
+        let lng_index = if lng_index == self.grid_size {
+            lng_index - 1
+        } else {
+            lng_index
+        };
 
         lat_index + lng_index * self.grid_size
     }
@@ -139,4 +182,6 @@ fn test_index_calculation() {
     assert_eq!(0, grid.get_index(8.0, 9.0));
     assert_eq!(1, grid.get_index(8.21, 9.0));
     assert_eq!(10, grid.get_index(8.0, 9.21));
+    assert_eq!(11, grid.get_index(8.21, 9.21));
+    assert_eq!(99, grid.get_index(10.0, 11.0));
 }
