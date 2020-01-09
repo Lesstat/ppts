@@ -30,6 +30,9 @@ impl<'a> PreferenceEstimator<'a> {
         // Constraints
         for var in &variables {
             problem += var.ge(0);
+            if !var.name.contains("unit") {
+                problem += var;
+            }
         }
         problem += lp_sum(&variables).equal(1);
 
