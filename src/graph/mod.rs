@@ -145,7 +145,7 @@ impl Graph {
                 if start == m {
                     return;
                 }
-                let mut estimator = PreferenceEstimator::new(self);
+                let estimator = PreferenceEstimator::new(self);
                 let pref = estimator.calc_preference(&mut dijkstra, &path, start, m);
                 if pref.is_some() {
                     low = m + 1;
