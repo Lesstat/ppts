@@ -32,6 +32,11 @@ impl<T> MyVec<T> {
         MyVec(Vec::new())
     }
 }
+impl<T> From<Vec<T>> for MyVec<T> {
+    fn from(source: Vec<T>) -> Self {
+        Self(source)
+    }
+}
 
 impl<T> Index<u32> for MyVec<T> {
     type Output = T;

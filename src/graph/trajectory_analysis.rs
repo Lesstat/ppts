@@ -8,7 +8,7 @@ pub struct TrajectoryAnalysis<'a> {
 }
 
 pub struct SubPath<'a> {
-    edges: &'a [u32],
+    pub edges: &'a [u32],
 }
 
 impl<'a> TrajectoryAnalysis<'a> {
