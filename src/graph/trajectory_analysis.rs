@@ -52,7 +52,6 @@ impl<'a> TrajectoryAnalysis<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::graph::dijkstra::*;
     use crate::graph::*;
     use crate::helpers::EQUAL_WEIGHTS;
     use crate::EDGE_COST_DIMENSION;
@@ -163,5 +162,57 @@ mod tests {
 
         assert_eq!(1, non_opts.len());
         assert_eq!(&[1, 2, 3], non_opts[0].edges);
+    }
+
+    #[test]
+    fn test_finding_overlapping_non_optimal_subpaths() {
+        // Ascii art of the graph
+        // s,t,x = vertices
+        // +,-,| = part of an edge
+        //                                   1
+        //			     +---------------+
+        //			     |		     |
+        //	       	 1       1   |	 1       1   |
+        //	     s-------x-------x-------x-------x-----t
+        //		     |		     |
+        //		     |	     1       |
+        //		     +---------------+
+
+        let one_cost = [1.0; EDGE_COST_DIMENSION];
+
+        let graph = Graph::new(
+            vec![
+                Node::new(0, 0), //s
+                Node::new(1, 0),
+                Node::new(2, 0),
+                Node::new(3, 0),
+                Node::new(4, 0),
+                Node::new(5, 0),
+                Node::new(6, 0), // t
+            ],
+            vec![
+                Edge::new(0, 0, 1, one_cost, None),
+                Edge::new(1, 1, 2, one_cost, None),
+                Edge::new(2, 2, 3, one_cost, None),
+                Edge::new(3, 3, 4, one_cost, None),
+                Edge::new(4, 4, 5, one_cost, None),
+                Edge::new(5, 4, 6, one_cost, None),
+                Edge::new(6, 1, 3, one_cost, None), // lower edge that skips one node
+                Edge::new(7, 2, 4, one_cost, None), // upper edge that skips one node
+            ],
+        );
+
+        let mut d = Dijkstra::new(&graph);
+        let mut path = graph
+            .find_shortest_path(&mut d, 0, vec![0, 2, 3, 6], EQUAL_WEIGHTS)
+            .unwrap();
+
+        let ta = TrajectoryAnalysis::new(&graph);
+
+        let non_opts = ta.find_non_optimal_segments(&mut path);
+
+        assert_eq!(2, non_opts.len());
+        assert_eq!(&[1, 2], non_opts[0].edges);
+        assert_eq!(&[2, 3], non_opts[1].edges);
     }
 }
