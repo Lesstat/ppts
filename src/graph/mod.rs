@@ -13,6 +13,8 @@ mod edge;
 mod node;
 pub mod path;
 
+pub mod trajectory_analysis;
+
 #[derive(Debug)]
 pub struct Graph {
     pub nodes: MyVec<Node>,
