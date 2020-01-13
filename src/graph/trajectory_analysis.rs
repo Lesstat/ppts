@@ -1,5 +1,7 @@
+use super::dijkstra::Dijkstra;
 use super::path::Path;
 use super::Graph;
+use crate::lp::PreferenceEstimator;
 
 pub struct TrajectoryAnalysis<'a> {
     graph: &'a Graph,
@@ -18,15 +20,27 @@ impl<'a> TrajectoryAnalysis<'a> {
         if path.algo_split.is_none() {
             self.graph.find_preference(path);
         }
+        let mut d = Dijkstra::new(&self.graph);
 
         // Ignore last cut as it is the last node of the path
         if let Some((_, cut_indices)) = path.algo_split.as_ref().and_then(|s| s.cuts.split_last()) {
             let mut res = Vec::new();
             for c in cut_indices {
-                let subpath = SubPath {
-                    edges: &path.edges[(c - 1)..=*c],
-                };
-                res.push(subpath);
+                let mut dist = 1;
+                loop {
+                    let esti = PreferenceEstimator::new(&self.graph);
+                    if esti
+                        .calc_preference(&mut d, &path, c - dist, c + 1)
+                        .is_none()
+                    {
+                        let subpath = SubPath {
+                            edges: &path.edges[(c - dist)..=*c],
+                        };
+                        res.push(subpath);
+                        break;
+                    }
+                    dist += 1;
+                }
             }
             res
         } else {
