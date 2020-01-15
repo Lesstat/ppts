@@ -86,10 +86,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 let subpaths = ta.find_non_optimal_segments(&mut p);
                 let time = start.elapsed();
                 let non_opt_subpaths = NonOptSubPathsResult {
-                    non_opt_subpaths: MyVec::<MyVec<u32>>::from(
+                    non_opt_subpaths: MyVec::<_>::from(
                         subpaths
                             .iter()
-                            .map(|s| MyVec::from(Vec::from(s.edges)))
+                            .map(|s| (s.start_index, s.end_index))
                             .collect::<Vec<_>>(),
                     ),
                     runtime: time

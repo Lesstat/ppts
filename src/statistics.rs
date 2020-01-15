@@ -21,7 +21,7 @@ pub struct SplittingStatistics {
 
 #[derive(Serialize, Deserialize, Default)]
 pub struct NonOptSubPathsResult {
-    pub non_opt_subpaths: MyVec<MyVec<u32>>,
+    pub non_opt_subpaths: MyVec<(u32, u32)>,
     pub runtime: usize,
 }
 

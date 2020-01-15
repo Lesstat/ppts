@@ -7,8 +7,11 @@ pub struct TrajectoryAnalysis<'a> {
     graph: &'a Graph,
 }
 
-pub struct SubPath<'a> {
-    pub edges: &'a [u32],
+pub struct SubPath {
+    /// Index of the path where the SubPath starts
+    pub start_index: u32,
+    /// Index of the path where the SubPath ends
+    pub end_index: u32,
 }
 
 impl<'a> TrajectoryAnalysis<'a> {
@@ -16,7 +19,7 @@ impl<'a> TrajectoryAnalysis<'a> {
         TrajectoryAnalysis { graph }
     }
 
-    pub fn find_non_optimal_segments<'b>(&self, path: &'b mut Path) -> Vec<SubPath<'b>> {
+    pub fn find_non_optimal_segments(&self, path: &mut Path) -> Vec<SubPath> {
         if path.algo_split.is_none() {
             self.graph.find_preference(path);
         }
@@ -34,7 +37,8 @@ impl<'a> TrajectoryAnalysis<'a> {
                         .is_none()
                     {
                         let subpath = SubPath {
-                            edges: &path.edges[(c - dist)..=*c],
+                            start_index: c - dist,
+                            end_index: c + 1,
                         };
                         res.push(subpath);
                         break;
@@ -116,7 +120,8 @@ mod tests {
         let non_opts = ta.find_non_optimal_segments(&mut path);
 
         assert_eq!(1, non_opts.len());
-        assert_eq!(&[1, 2], non_opts[0].edges);
+        assert_eq!(1, non_opts[0].start_index);
+        assert_eq!(3, non_opts[0].end_index);
     }
 
     #[test]
@@ -161,7 +166,8 @@ mod tests {
         let non_opts = ta.find_non_optimal_segments(&mut path);
 
         assert_eq!(1, non_opts.len());
-        assert_eq!(&[1, 2, 3], non_opts[0].edges);
+        assert_eq!(1, non_opts[0].start_index);
+        assert_eq!(4, non_opts[0].end_index);
     }
 
     #[test]
@@ -212,7 +218,9 @@ mod tests {
         let non_opts = ta.find_non_optimal_segments(&mut path);
 
         assert_eq!(2, non_opts.len());
-        assert_eq!(&[1, 2], non_opts[0].edges);
-        assert_eq!(&[2, 3], non_opts[1].edges);
+        assert_eq!(1, non_opts[0].start_index);
+        assert_eq!(3, non_opts[0].end_index);
+        assert_eq!(2, non_opts[1].start_index);
+        assert_eq!(4, non_opts[1].end_index);
     }
 }
