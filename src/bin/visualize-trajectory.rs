@@ -5,26 +5,42 @@ use preference_splitting::trajectories::{read_trajectories, Trajectory};
 use preference_splitting::MyResult;
 
 use std::collections::HashMap;
-use std::env::args;
 use std::io::Write;
+use std::path::PathBuf;
 
 use geojson::{Feature, FeatureCollection, Geometry, Value};
+use structopt::StructOpt;
+
+#[derive(StructOpt)]
+struct Opt {
+    #[structopt(subcommand)]
+    style: Style,
+    /// File containing all trajectories
+    trajectory_file: PathBuf,
+    /// File containing results of the MOPS algorithm
+    splitting_results_file: PathBuf,
+    /// File containing the geometry of the graph as geojson
+    geojson_file: PathBuf,
+    /// ID of the trajectory to visualize
+    trajectory_id: i64,
+}
+
+#[derive(StructOpt)]
+enum Style {
+    /// Visualizes the different optimal segments in different colors
+    Cuts,
+    /// Visualizes the non-optimal sub paths
+    NonOpts,
+}
 
 fn main() -> MyResult<()> {
-    let args: Vec<_> = args().collect();
-
-    if args.len() != 5 {
-        println!("Not correct amount of arguments");
-        println!(
-            "{} <trajectories.json> <splitting_results.json> <geojson.json> <trajectory-id>",
-            args[0]
-        );
-        return Ok(());
-    }
-    let trajectory_file = &args[1];
-    let splitting_results_file = &args[2];
-    let geojson_file = &args[3];
-    let trajectory_id: i64 = args[4].parse()?;
+    let Opt {
+        style,
+        trajectory_file,
+        splitting_results_file,
+        geojson_file,
+        trajectory_id,
+    } = Opt::from_args();
 
     println!("reading input files");
 
@@ -47,7 +63,10 @@ fn main() -> MyResult<()> {
 
     println!("creating geojson");
 
-    let feature_collection = visualize_cuts(&trajectory, &splitting, &geojson_map);
+    let feature_collection = match style {
+        Style::Cuts => visualize_cuts(&trajectory, &splitting, &geojson_map),
+        Style::NonOpts => todo!("visualize snosp"),
+    };
 
     let outfile = format!("geojson_trajectory_{}.json", trajectory_id);
 
