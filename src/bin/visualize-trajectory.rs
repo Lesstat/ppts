@@ -1,9 +1,10 @@
 use preference_splitting::geojson::read_geojson_map;
 use preference_splitting::helpers::Preference;
-use preference_splitting::statistics::read_splitting_results;
-use preference_splitting::trajectories::read_trajectories;
+use preference_splitting::statistics::{read_splitting_results, SplittingStatistics};
+use preference_splitting::trajectories::{read_trajectories, Trajectory};
 use preference_splitting::MyResult;
 
+use std::collections::HashMap;
 use std::env::args;
 use std::io::Write;
 
@@ -46,6 +47,24 @@ fn main() -> MyResult<()> {
 
     println!("creating geojson");
 
+    let feature_collection = visualize_cuts(&trajectory, &splitting, &geojson_map);
+
+    let outfile = format!("geojson_trajectory_{}.json", trajectory_id);
+
+    println!("saving into file {}", outfile);
+
+    let file = std::fs::File::create(outfile)?;
+    let mut file = std::io::BufWriter::new(file);
+
+    file.write_all(serde_json::to_string(&feature_collection)?.as_bytes())?;
+    Ok(())
+}
+
+fn visualize_cuts(
+    trajectory: &Trajectory,
+    splitting: &SplittingStatistics,
+    geojson_map: &HashMap<i64, Geometry>,
+) -> FeatureCollection {
     let mut last_cut = 0;
     let features = splitting
         .cuts
@@ -69,30 +88,20 @@ fn main() -> MyResult<()> {
                 id: None,
                 bbox: None,
                 foreign_members: None,
-                properties: create_properties(i, &splitting.preferences[i]),
+                properties: create_cut_properties(i, &splitting.preferences[i]),
                 geometry: Some(geometry),
             }
         })
         .collect();
 
-    let feature_collection = FeatureCollection {
+    FeatureCollection {
         bbox: None,
         features,
         foreign_members: None,
-    };
-
-    let outfile = format!("geojson_trajectory_{}.json", trajectory_id);
-
-    println!("saving into file {}", outfile);
-
-    let file = std::fs::File::create(outfile)?;
-    let mut file = std::io::BufWriter::new(file);
-
-    file.write_all(serde_json::to_string(&feature_collection)?.as_bytes())?;
-    Ok(())
+    }
 }
 
-fn create_properties(
+fn create_cut_properties(
     i: usize,
     p: &Preference,
 ) -> Option<serde_json::map::Map<String, serde_json::Value>> {
@@ -117,10 +126,7 @@ fn create_properties(
         "stroke-width".to_owned(),
         Value::Number(Number::from_f64(5.0).unwrap()),
     );
-    map.insert(
-        "preference".to_owned(),
-        Value::String(format!("{:?}", p).to_owned()),
-    );
+    map.insert("preference".to_owned(), Value::String(format!("{:?}", p)));
 
     Some(map)
 }
