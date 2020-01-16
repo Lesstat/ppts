@@ -46,7 +46,7 @@ impl<'a> PreferenceEstimator<'a> {
     }
 
     pub fn calc_preference(
-        &mut self,
+        mut self,
         dijkstra: &mut Dijkstra,
         path: &Path,
         source_idx: u32,

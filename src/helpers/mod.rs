@@ -6,6 +6,8 @@ use std::ops::{Deref, DerefMut, Index, IndexMut, Range, RangeInclusive};
 pub type Preference = [f64; EDGE_COST_DIMENSION];
 pub type Costs = [f64; EDGE_COST_DIMENSION];
 
+pub const EQUAL_WEIGHTS: Preference = [1.0 / EDGE_COST_DIMENSION as f64; EDGE_COST_DIMENSION];
+
 pub fn costs_by_alpha(costs: &Costs, alpha: &Preference) -> f64 {
     costs
         .iter()
@@ -28,6 +30,11 @@ pub struct MyVec<T>(pub Vec<T>);
 impl<T> MyVec<T> {
     pub fn new() -> MyVec<T> {
         MyVec(Vec::new())
+    }
+}
+impl<T> From<Vec<T>> for MyVec<T> {
+    fn from(source: Vec<T>) -> Self {
+        Self(source)
     }
 }
 
@@ -74,6 +81,14 @@ impl<T> Index<usize> for MyVec<T> {
 impl<T> IndexMut<usize> for MyVec<T> {
     fn index_mut(&mut self, idx: usize) -> &mut Self::Output {
         &mut self.0[idx]
+    }
+}
+
+impl<T> Index<Range<usize>> for MyVec<T> {
+    type Output = [T];
+
+    fn index(&self, r: Range<usize>) -> &Self::Output {
+        &self.0[r.start..r.end]
     }
 }
 

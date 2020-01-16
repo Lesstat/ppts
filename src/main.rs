@@ -3,8 +3,12 @@ use std::env;
 use std::io::Write;
 use std::time::Instant;
 
+use preference_splitting::graph::trajectory_analysis::TrajectoryAnalysis;
 use preference_splitting::graphml::{read_graphml, AttributeType, GraphData};
-use preference_splitting::statistics::{SplittingResults, SplittingStatistics};
+use preference_splitting::helpers::MyVec;
+use preference_splitting::statistics::{
+    NonOptSubPathsResult, SplittingResults, SplittingStatistics,
+};
 use preference_splitting::trajectories::{check_trajectory, read_trajectories};
 use preference_splitting::{MyError, EDGE_COST_DIMENSION};
 
@@ -75,6 +79,26 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             if let Some(ref algo_split) = p.algo_split {
                 s.preferences = algo_split.alphas.clone();
                 s.cuts = algo_split.cuts.clone();
+
+                let start = Instant::now();
+
+                let ta = TrajectoryAnalysis::new(&graph);
+                let subpaths = ta.find_non_optimal_segments(&mut p);
+                let time = start.elapsed();
+                let non_opt_subpaths = NonOptSubPathsResult {
+                    non_opt_subpaths: MyVec::<_>::from(
+                        subpaths
+                            .iter()
+                            .map(|s| (s.start_index, s.end_index))
+                            .collect::<Vec<_>>(),
+                    ),
+                    runtime: time
+                        .as_millis()
+                        .try_into()
+                        .expect("Couldn't convert run time into usize"),
+                };
+
+                s.non_opt_subpaths = Some(non_opt_subpaths);
             }
             progress.inc(1);
         });
