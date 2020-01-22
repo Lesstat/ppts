@@ -57,6 +57,8 @@ fn main() -> MyResult<()> {
         })
         .for_each(|n| crowdedness_grid.add_crowd_point(n.lat(), n.lon()));
 
+    crowdedness_grid.print_grid_size();
+
     println!("Calculate crowdedness per edge");
     let crowdedness_assignment: HashMap<_, usize> = geojson_map
         .iter()
@@ -156,8 +158,32 @@ impl CrowdednessGrid {
     fn contains(&self, lat: f64, lng: f64) -> bool {
         self.min_lat <= lat && lat <= self.max_lat && self.min_lng <= lng && lng <= self.max_lng
     }
+
+    fn print_grid_size(&self) {
+        let wide = haversine(self.max_lat, self.min_lng, self.max_lat, self.max_lng);
+        let high = haversine(self.min_lat, self.max_lng, self.max_lat, self.max_lng);
+
+        println!("Bounding box is {}m wide and {}m high", wide, high);
+        println!(
+            "This means {}m / {}m per grid cell",
+            wide / self.grid_size as f64,
+            high / self.grid_size as f64,
+        )
+    }
 }
 
+fn haversine(from_lat: f64, from_lng: f64, to_lat: f64, to_lng: f64) -> f64 {
+    const EARTH_RADIUS: f64 = 6_371_007.2; // in m
+    let theta1 = from_lat.to_radians();
+    let theta2 = to_lat.to_radians();
+    let delta_theta = (to_lat - from_lat).to_radians();
+    let delta_lambda = (to_lng - from_lng).to_radians();
+    let a = (delta_theta / 2.0).sin().powi(2)
+        + theta1.cos() * theta2.cos() * (delta_lambda / 2.0).sin().powi(2);
+    let c = 2.0 * a.sqrt().asin();
+
+    EARTH_RADIUS * c
+}
 #[test]
 fn test_bbox_init() {
     let mut grid = CrowdednessGrid::new(10);
