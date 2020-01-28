@@ -229,11 +229,9 @@ pub fn find_path(dijkstra: &mut Dijkstra, include: &[u32], alpha: Preference) ->
             dimension_costs.push(result.costs);
             costs_by_alpha.push(result.total_cost);
         } else {
-            println!("=== Dijkstra could not find a route ===");
             return None;
         }
     }
-    // println!("=== Found path with costs: {:?} ===", costs_by_alpha);
     Some(HalfPath {
         edges,
         dimension_costs,
