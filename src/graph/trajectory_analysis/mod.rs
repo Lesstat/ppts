@@ -3,6 +3,9 @@ use super::path::Path;
 use super::Graph;
 use crate::lp::PreferenceEstimator;
 
+
+pub mod evaluations;
+
 pub struct TrajectoryAnalysis<'a> {
     graph: &'a Graph,
 }
