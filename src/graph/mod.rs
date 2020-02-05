@@ -5,6 +5,7 @@ use dijkstra::Dijkstra;
 pub use node::Node;
 use path::{Path, PathSplit};
 
+use crate::graphml::{EdgeLookup, GraphData};
 use crate::helpers::{MyVec, Preference};
 use crate::lp::PreferenceEstimator;
 
@@ -256,4 +257,80 @@ pub fn parse_graph_file(file_path: &str) -> Result<Graph, Box<dyn std::error::Er
         }
     }
     Ok(Graph::new(nodes, edges))
+}
+
+pub fn parse_minimal_graph_file(file_path: &str) -> Result<GraphData, Box<dyn std::error::Error>> {
+    use crate::EDGE_COST_DIMENSION;
+    use std::fs::File;
+    use std::io::{BufRead, BufReader};
+
+    println!("Parsing graph...");
+    let mut nodes: Vec<Node> = Vec::new();
+    let mut edges: Vec<Edge> = Vec::new();
+    let file = File::open(file_path)?;
+    let reader = BufReader::new(file);
+    let mut lines = reader.lines();
+
+    let mut edge_lookup: EdgeLookup = Default::default();
+    // TODO: Make metric names part of file format
+    let keys = Default::default();
+
+    loop {
+        if let Some(Ok(line)) = lines.next() {
+            if !line.starts_with('#') {
+                break;
+            }
+        }
+    }
+
+    let cost_dim: usize = lines.next().expect("No edge cost dim given")?.parse()?;
+    assert_eq!(EDGE_COST_DIMENSION, cost_dim, "Graph has wrong dimension");
+    let num_of_nodes = lines
+        .next()
+        .expect("Number of nodes not present in file")?
+        .parse()?;
+    let num_of_edges = lines
+        .next()
+        .expect("Number of edges not present in file")?
+        .parse()?;
+
+    let mut parsed_nodes: usize = 0;
+    let mut parsed_edges: u32 = 0;
+    while let Some(Ok(line)) = lines.next() {
+        let tokens: Vec<&str> = line.split_whitespace().collect();
+        if tokens[0] == "#" || tokens[0] == "\n" {
+            continue;
+        }
+        if parsed_nodes < num_of_nodes {
+            nodes.push(Node::new(tokens[0].parse()?, tokens[1].parse()?));
+            parsed_nodes += 1;
+        } else if parsed_edges < num_of_edges {
+            let replaced_edges = if tokens[tokens.len() - 2] == "-1" {
+                None
+            } else {
+                Some((
+                    tokens[tokens.len() - 2].parse()?,
+                    tokens[tokens.len() - 1].parse()?,
+                ))
+            };
+            edges.push(Edge::new(
+                parsed_edges,
+                tokens[1].parse()?,
+                tokens[2].parse()?,
+                edge::parse_costs(&tokens[3..tokens.len() - 2]),
+                replaced_edges,
+            ));
+            edge_lookup.insert(tokens[0].to_string(), parsed_edges);
+            parsed_edges += 1;
+        } else {
+            panic!("Something doesn't add up with the amount of nodes and edges in graph file");
+        }
+    }
+    let graph = Graph::new(nodes, edges);
+
+    Ok(GraphData {
+        graph,
+        edge_lookup,
+        keys,
+    })
 }

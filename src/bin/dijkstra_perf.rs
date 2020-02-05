@@ -1,4 +1,5 @@
 use preference_splitting::graph::dijkstra::{find_path, Dijkstra};
+use preference_splitting::graph::parse_minimal_graph_file;
 use preference_splitting::graphml::read_graphml;
 use preference_splitting::helpers::Preference;
 use preference_splitting::EDGE_COST_DIMENSION;
@@ -13,10 +14,13 @@ use structopt::StructOpt;
 #[derive(StructOpt)]
 struct Opts {
     /// Graph file to use
-    graphml_file: String,
+    graph_file: String,
     /// Number of routes to measure
     #[structopt(default_value = "1000")]
     routes: u32,
+    /// File should be read as graphml
+    #[structopt(long = "graphml")]
+    graphml_format: bool,
 }
 
 fn randomized_preference(rng: &mut ThreadRng) -> Preference {
@@ -37,12 +41,18 @@ fn randomized_preference(rng: &mut ThreadRng) -> Preference {
 fn main() -> Result<(), Box<dyn Error>> {
     let opts = Opts::from_args();
 
-    let graph_data = read_graphml(&opts.graphml_file)?;
+    let graph_data = if opts.graphml_format {
+        read_graphml(&opts.graph_file)?
+    } else {
+        parse_minimal_graph_file(&opts.graph_file)?
+    };
 
-    let node_dstribution = Uniform::new(0, graph_data.graph.nodes.len() as u32);
+    let graph = graph_data.graph;
+
+    let node_dstribution = Uniform::new(0, graph.nodes.len() as u32);
     let mut rng = rand::thread_rng();
 
-    let mut d = Dijkstra::new(&graph_data.graph);
+    let mut d = Dijkstra::new(&graph);
 
     let mut whole_time = Duration::new(0, 0);
 
