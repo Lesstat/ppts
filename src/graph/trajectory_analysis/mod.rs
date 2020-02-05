@@ -67,17 +67,17 @@ impl<'a> TrajectoryAnalysis<'a> {
 /// costs of the optimal path for a single metric real_costs: the cost
 /// vector of the path for which the preferences should be computed
 /// return value: approximation of the underlying preferences
-fn get_linear_combination(costs_per_metric: &Vec<Vec<f64>>, real_costs: &Vec<f64>) -> Vec<f64> {
+pub fn get_linear_combination(costs_per_metric: &[Vec<f64>], real_costs: &[f64]) -> Vec<f64> {
     let mut finished: bool = false;
     let dim: usize = real_costs.len();
     let mut alpha: Vec<f64> = vec![0.0; dim];
     let mut rest: Vec<f64> = real_costs.to_vec();
-    let mut distance: f64 = get_length(&real_costs);
+    //let mut distance: f64 = get_length(&real_costs); distance was set but never used
     let mut normalized_costs_per_metric: Vec<Vec<f64>> = Vec::new();
-    for i in 0..dim {
-        normalized_costs_per_metric.push(normalize_vec(&costs_per_metric[i]));
+    for metric_cost in costs_per_metric {
+        normalized_costs_per_metric.push(normalize_vec(metric_cost));
     }
-    let mut count: usize = 0;
+    // let mut count: usize = 0; count was set but never used
     while !finished {
         let mut best_scalar: f64 = 0.0;
         let mut best_index: usize = 0;
@@ -98,64 +98,62 @@ fn get_linear_combination(costs_per_metric: &Vec<Vec<f64>>, real_costs: &Vec<f64
             rest[i] -= step[i];
         }
         let dist: f64 = get_length(&step);
-        if dist < 0.000001 {
+        if dist < 0.000_001 {
             finished = true;
         } else {
             alpha[best_index] += best_scalar;
-            distance = dist;
+            //distance = dist;
         }
-        count += 1;
+        // count += 1;
     }
-    let mut sum_alpha: f64 = 0.0;
-    for i in 0..dim {
-        sum_alpha += alpha[i];
-    }
+    let sum_alpha: f64 = alpha.iter().sum();
+
     alpha.iter_mut().for_each(|x| *x /= sum_alpha);
-    return alpha;
+    alpha
 }
 
 /*
 helper function for get_linear_combination
  */
-fn get_scalar_product(vec1: &Vec<f64>, vec2: &Vec<f64>) -> f64 {
+fn get_scalar_product(vec1: &[f64], vec2: &[f64]) -> f64 {
     let mut res: f64 = 0.0;
     let dim: usize = vec1.len();
     for i in 0..dim {
         res += vec1[i] * vec2[i];
     }
-    return res;
+    res
 }
 
 /*
 helper function for get_linear_combination
  */
-fn normalize_vec(vec: &Vec<f64>) -> Vec<f64> {
+fn normalize_vec(vec: &[f64]) -> Vec<f64> {
     let mut res: Vec<f64> = vec![0.0; vec.len()];
     let length: f64 = get_length(&vec);
     for i in 0..vec.len() {
         res[i] = vec[i] / length;
     }
-    return res;
+    res
 }
 
 /*
 helper function for get_linear_combination
  */
-fn get_distance(vec1: &Vec<f64>, vec2: &Vec<f64>) -> f64 {
+fn get_distance(vec1: &[f64], vec2: &[f64]) -> f64 {
     let mut res: f64 = 0.0;
     for i in 0..vec1.len() {
         let dif: f64 = vec1[i] - vec2[i];
         res += dif * dif;
     }
-    return res.sqrt();
+    res.sqrt()
 }
 
 /*
 helper function for get_linear_combination
  */
-pub fn get_length(vec: &Vec<f64>) -> f64 {
+pub fn get_length(vec: &[f64]) -> f64 {
     let zeros = vec![0.0; vec.len()];
-    return get_distance(&vec, &zeros);
+    get_distance(&vec, &zeros)
 }
 
 #[cfg(test)]
