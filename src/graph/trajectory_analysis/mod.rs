@@ -115,7 +115,7 @@ pub fn get_linear_combination(costs_per_metric: &[Vec<f64>], real_costs: &[f64])
 /*
 helper function for get_linear_combination
  */
-fn get_scalar_product(vec1: &[f64], vec2: &[f64]) -> f64 {
+pub fn get_scalar_product(vec1: &[f64], vec2: &[f64]) -> f64 {
     let mut res: f64 = 0.0;
     let dim: usize = vec1.len();
     for i in 0..dim {
