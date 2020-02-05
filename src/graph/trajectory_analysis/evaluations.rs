@@ -34,6 +34,22 @@ pub fn cost_angle(cost1: &Costs, cost2: &Costs) -> f64 {
     product / (length1 * length2)
 }
 
+/// Calculates length ratio between costs.
+///
+/// 1.0 means same length, smaller values mean more difference.
+pub fn cost_length_ratio(cost1: &Costs, cost2: &Costs) -> f64 {
+    let length1 = get_length(cost1);
+    let length2 = get_length(cost2);
+
+    let (longer, shorter) = if length1 < length2 {
+        (length2, length1)
+    } else {
+        (length1, length2)
+    };
+
+    shorter / longer
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
