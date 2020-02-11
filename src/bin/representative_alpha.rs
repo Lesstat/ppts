@@ -1,13 +1,16 @@
 use preference_splitting::graph::dijkstra::Dijkstra;
 use preference_splitting::graph::parse_minimal_graph_file;
 use preference_splitting::graph::trajectory_analysis::get_linear_combination;
+use preference_splitting::graphml::AttributeType;
 use preference_splitting::helpers::{Costs, Preference};
 use preference_splitting::trajectories::{check_trajectory, read_trajectories, Trajectory};
 use preference_splitting::{MyError, MyResult, EDGE_COST_DIMENSION};
 
 use std::convert::TryInto;
+use std::io::Write;
 use std::time::Instant;
 
+use chrono::prelude::*;
 use indicatif::{ProgressBar, ProgressStyle};
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
@@ -19,6 +22,8 @@ struct Opts {
     graph_file: String,
     /// Json file containing trajectories
     trajectory_file: String,
+    /// file to write output to
+    out_file: Option<String>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -44,6 +49,7 @@ fn main() -> MyResult<()> {
     let Opts {
         graph_file,
         trajectory_file,
+        out_file,
     } = Opts::from_args();
 
     println!("reading graph file");
@@ -74,6 +80,7 @@ fn main() -> MyResult<()> {
             .progress_chars("#>-"),
     );
 
+    println!("finiding representatitve alphas");
     trajectories
         .par_iter()
         .zip(statistics.par_iter_mut())
@@ -119,8 +126,39 @@ fn main() -> MyResult<()> {
 
             s.alpha_cost = alpha_path.total_dimension_costs;
             s.alpha = alpha;
+            progress.inc(1);
         });
 
+    progress.finish();
+
+    let outfile_name = out_file.unwrap_or_else(|| {
+        format!(
+            "splitting_results_{}.json",
+            Utc::now().format("%Y-%m-%d_%H:%M:%S").to_string()
+        )
+    });
+
+    println!("writing results to \"{}\"", outfile_name);
+
+    let mut metrics = vec!["".to_owned(); EDGE_COST_DIMENSION];
+
+    for key in graph_data.keys.values() {
+        if let AttributeType::Double(idx) = key.attribute_type {
+            metrics[idx] = key.name.clone();
+        }
+    }
+
+    let outfile = std::fs::File::create(outfile_name)?;
+    let mut outfile = std::io::BufWriter::new(outfile);
+
+    let results = Results {
+        graph_file,
+        trajectory_file,
+        metrics,
+        results: statistics,
+    };
+
+    outfile.write_all(serde_json::to_string_pretty(&results)?.as_bytes())?;
     Ok(())
 }
 
