@@ -64,7 +64,7 @@ impl<'a> PreferenceEstimator<'a> {
                 .find_shortest_path(
                     dijkstra,
                     0,
-                    vec![path.nodes[source_idx], path.nodes[target_idx]],
+                    &[path.nodes[source_idx], path.nodes[target_idx]],
                     alpha,
                 )
                 .unwrap();

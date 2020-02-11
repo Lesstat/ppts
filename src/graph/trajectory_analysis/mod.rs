@@ -1,7 +1,9 @@
 use super::dijkstra::Dijkstra;
 use super::path::Path;
 use super::Graph;
+use crate::helpers::{Costs, Preference};
 use crate::lp::PreferenceEstimator;
+use crate::EDGE_COST_DIMENSION;
 
 pub mod evaluations;
 
@@ -67,10 +69,10 @@ impl<'a> TrajectoryAnalysis<'a> {
 /// costs of the optimal path for a single metric real_costs: the cost
 /// vector of the path for which the preferences should be computed
 /// return value: approximation of the underlying preferences
-pub fn get_linear_combination(costs_per_metric: &[Vec<f64>], real_costs: &[f64]) -> Vec<f64> {
+pub fn get_linear_combination(costs_per_metric: &[Costs], real_costs: &[f64]) -> Preference {
     let mut finished: bool = false;
     let dim: usize = real_costs.len();
-    let mut alpha: Vec<f64> = vec![0.0; dim];
+    let mut alpha = [0.0; EDGE_COST_DIMENSION];
     let mut rest: Vec<f64> = real_costs.to_vec();
     //let mut distance: f64 = get_length(&real_costs); distance was set but never used
     let mut normalized_costs_per_metric: Vec<Vec<f64>> = Vec::new();

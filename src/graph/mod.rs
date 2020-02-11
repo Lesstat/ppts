@@ -82,7 +82,7 @@ impl Graph {
         &self,
         dijkstra: &mut Dijkstra,
         id: u32,
-        include: Vec<u32>,
+        include: &[u32],
         alpha: Preference,
     ) -> Option<Path> {
         if let Some(result) = dijkstra::find_path(dijkstra, &include, alpha) {
