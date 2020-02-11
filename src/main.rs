@@ -1,8 +1,8 @@
 use std::convert::TryInto;
-use std::env;
 use std::io::Write;
 use std::time::Instant;
 
+use preference_splitting::graph::parse_minimal_graph_file;
 use preference_splitting::graph::trajectory_analysis::TrajectoryAnalysis;
 use preference_splitting::graphml::{read_graphml, AttributeType, GraphData};
 use preference_splitting::helpers::MyVec;
@@ -15,22 +15,33 @@ use preference_splitting::{MyError, EDGE_COST_DIMENSION};
 use chrono::prelude::*;
 use indicatif::{ProgressBar, ProgressStyle};
 use rayon::prelude::*;
+use structopt::StructOpt;
+
+#[derive(StructOpt)]
+struct Opts {
+    #[structopt(short = "g", long = "graphml")]
+    graphml: bool,
+    graph_file: String,
+    trajectory_file: String,
+}
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let args: Vec<String> = env::args().collect();
-    if args.len() != 3 {
-        panic!("Please provide exactly two parameter, which is the path to the graph file and the path to the trajectory file");
-    }
-
-    let graph_file = args[1].to_owned();
+    let Opts {
+        graphml,
+        graph_file,
+        trajectory_file,
+    } = Opts::from_args();
 
     let GraphData {
         graph,
         edge_lookup,
         keys,
-    } = read_graphml(&graph_file)?;
+    } = if graphml {
+        read_graphml(&graph_file)?
+    } else {
+        parse_minimal_graph_file(&graph_file)?
+    };
 
-    let trajectory_file = args[2].to_owned();
     let mut trajectories = read_trajectories(&trajectory_file)?;
 
     let mut statistics: Vec<_> = trajectories.iter().map(SplittingStatistics::new).collect();

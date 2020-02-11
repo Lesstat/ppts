@@ -5,7 +5,7 @@ use dijkstra::Dijkstra;
 pub use node::Node;
 use path::{Path, PathSplit};
 
-use crate::graphml::{EdgeLookup, GraphData};
+use crate::graphml::{EdgeLookup, GraphData, GraphmlAttribute};
 use crate::helpers::{MyVec, Preference};
 use crate::lp::PreferenceEstimator;
 
@@ -272,8 +272,6 @@ pub fn parse_minimal_graph_file(file_path: &str) -> Result<GraphData, Box<dyn st
     let mut lines = reader.lines();
 
     let mut edge_lookup: EdgeLookup = Default::default();
-    // TODO: Make metric names part of file format
-    let keys = Default::default();
 
     loop {
         if let Some(Ok(line)) = lines.next() {
@@ -284,7 +282,21 @@ pub fn parse_minimal_graph_file(file_path: &str) -> Result<GraphData, Box<dyn st
     }
 
     let cost_dim: usize = lines.next().expect("No edge cost dim given")?.parse()?;
-    assert_eq!(EDGE_COST_DIMENSION, cost_dim, "Graph has wrong dimension");
+    if EDGE_COST_DIMENSION != cost_dim {
+        panic!("Graph has wrong dimension");
+    }
+
+    let metric_name_line = lines.next().expect("No metric names given")?;
+    let metric_names: Vec<_> = metric_name_line.split(' ').collect();
+    if metric_names.len() != EDGE_COST_DIMENSION {
+        panic!("Wrong number of metric names in graph file");
+    }
+    let keys = metric_names
+        .into_iter()
+        .enumerate()
+        .map(|(i, n)| (n.to_string(), GraphmlAttribute::new("edge", n, "double", i)))
+        .collect();
+
     let num_of_nodes = lines
         .next()
         .expect("Number of nodes not present in file")?

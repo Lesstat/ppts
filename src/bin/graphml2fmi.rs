@@ -26,7 +26,6 @@ fn main() -> Result<(), Box<dyn Error>> {
         "# Edge Attributes: ID source-id target-id {}-metrics replaced-edge1 replaced-edge2\n",
         EDGE_COST_DIMENSION
     ))?;
-    writer.write_fmt(format_args!("# Cost metrics:"))?;
     let mut metrics = [""; EDGE_COST_DIMENSION];
 
     graph_data
@@ -40,21 +39,21 @@ fn main() -> Result<(), Box<dyn Error>> {
             }
         })
         .for_each(|(i, name)| metrics[i] = name);
-    for metric in metrics.iter() {
-        writer.write_fmt(format_args!(" {}", metric))?;
-    }
 
-    writer.write_fmt(format_args!("\n\n"))?;
+    writer.write_fmt(format_args!("\n"))?;
     writer.write_fmt(format_args!("{}\n", EDGE_COST_DIMENSION))?;
+    for (i, metric) in metrics.iter().enumerate() {
+        if i > 0 {
+            writer.write_fmt(format_args!(" "))?;
+        }
+        writer.write_fmt(format_args!("{}", metric))?;
+    }
+    writer.write_fmt(format_args!("\n"))?;
     writer.write_fmt(format_args!("{}\n", graph_data.graph.nodes.len()))?;
     writer.write_fmt(format_args!("{}\n", graph_data.graph.edges.len()))?;
 
     for n in graph_data.graph.nodes.iter() {
-        let ch_level = if n.ch_level > 0 {
-            n.ch_level as i32
-        } else {
-            -1
-        };
+        let ch_level = if n.ch_level > 0 { n.ch_level as i32 } else { 0 };
         writer.write_fmt(format_args!("{} {}\n", n.id, ch_level))?;
     }
 

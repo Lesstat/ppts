@@ -11,11 +11,13 @@ use crate::EDGE_COST_DIMENSION;
 
 use roxmltree::Document;
 
+#[derive(Debug)]
 enum GraphObject {
     Node,
     Edge,
 }
 
+#[derive(Debug)]
 pub enum AttributeType {
     Boolean,
     String,
@@ -23,6 +25,7 @@ pub enum AttributeType {
     Long,
 }
 
+#[derive(Debug)]
 pub struct GraphmlAttribute {
     _obj_type: GraphObject,
     pub name: String,
@@ -32,7 +35,7 @@ pub struct GraphmlAttribute {
 pub type EdgeLookup = HashMap<String, u32>;
 
 impl<'a> GraphmlAttribute {
-    fn new(
+    pub fn new(
         obj_type: &'a str,
         name: &'a str,
         attribute_type: &'a str,
