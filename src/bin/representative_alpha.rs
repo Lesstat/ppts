@@ -22,7 +22,7 @@ struct Opts {
     graph_file: String,
     /// Json file containing trajectories
     trajectory_file: String,
-    /// file to write output to
+    /// File to write output to
     out_file: Option<String>,
 }
 
