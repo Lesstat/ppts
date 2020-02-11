@@ -14,9 +14,9 @@ pub struct SplittingStatistics {
     pub removed_self_loop_indices: MyVec<u32>,
     pub preferences: MyVec<Preference>,
     pub cuts: MyVec<u32>,
+    pub splitting_run_time: usize,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub non_opt_subpaths: Option<NonOptSubPathsResult>,
-    pub run_time: usize,
 }
 
 #[derive(Serialize, Deserialize, Default)]

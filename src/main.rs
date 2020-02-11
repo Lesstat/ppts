@@ -71,7 +71,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let start = Instant::now();
             graph.find_preference(&mut p);
             let time = start.elapsed();
-            s.run_time = time
+            s.splitting_run_time = time
                 .as_millis()
                 .try_into()
                 .expect("Couldn't convert run time into usize");
