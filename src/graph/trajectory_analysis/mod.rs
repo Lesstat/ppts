@@ -175,7 +175,7 @@ mod tests {
         let mut d = Dijkstra::new(&linegraph);
 
         let mut path = linegraph
-            .find_shortest_path(&mut d, 0, vec![0, 1], EQUAL_WEIGHTS)
+            .find_shortest_path(&mut d, 0, &[0, 1], EQUAL_WEIGHTS)
             .unwrap();
 
         let ta = TrajectoryAnalysis::new(&linegraph);
@@ -217,7 +217,7 @@ mod tests {
 
         let mut d = Dijkstra::new(&graph);
         let mut path = graph
-            .find_shortest_path(&mut d, 0, vec![0, 2, 4], EQUAL_WEIGHTS)
+            .find_shortest_path(&mut d, 0, &[0, 2, 4], EQUAL_WEIGHTS)
             .unwrap();
 
         let ta = TrajectoryAnalysis::new(&graph);
@@ -263,7 +263,7 @@ mod tests {
 
         let mut d = Dijkstra::new(&graph);
         let mut path = graph
-            .find_shortest_path(&mut d, 0, vec![0, 2, 5], EQUAL_WEIGHTS)
+            .find_shortest_path(&mut d, 0, &[0, 2, 5], EQUAL_WEIGHTS)
             .unwrap();
 
         let ta = TrajectoryAnalysis::new(&graph);
@@ -315,7 +315,7 @@ mod tests {
 
         let mut d = Dijkstra::new(&graph);
         let mut path = graph
-            .find_shortest_path(&mut d, 0, vec![0, 2, 3, 6], EQUAL_WEIGHTS)
+            .find_shortest_path(&mut d, 0, &[0, 2, 3, 6], EQUAL_WEIGHTS)
             .unwrap();
 
         let ta = TrajectoryAnalysis::new(&graph);
