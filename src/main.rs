@@ -2,8 +2,9 @@ use std::convert::TryInto;
 use std::io::Write;
 use std::time::Instant;
 
-use preference_splitting::graph::parse_minimal_graph_file;
+use preference_splitting::graph::path::Path;
 use preference_splitting::graph::trajectory_analysis::TrajectoryAnalysis;
+use preference_splitting::graph::{parse_minimal_graph_file, Graph};
 use preference_splitting::graphml::{read_graphml, AttributeType, GraphData};
 use preference_splitting::helpers::MyVec;
 use preference_splitting::statistics::{
@@ -23,6 +24,41 @@ struct Opts {
     graphml: bool,
     graph_file: String,
     trajectory_file: String,
+}
+
+fn run_experiment(graph: &Graph, p: &mut Path, s: &mut SplittingStatistics) {
+    let start = Instant::now();
+    graph.find_preference(p);
+    let time = start.elapsed();
+    s.splitting_run_time = time
+        .as_millis()
+        .try_into()
+        .expect("Couldn't convert run time into usize");
+
+    if let Some(ref algo_split) = p.algo_split {
+        s.preferences = algo_split.alphas.clone();
+        s.cuts = algo_split.cuts.clone();
+
+        let start = Instant::now();
+
+        let ta = TrajectoryAnalysis::new(&graph);
+        let subpaths = ta.find_non_optimal_segments(p);
+        let time = start.elapsed();
+        let non_opt_subpaths = NonOptSubPathsResult {
+            non_opt_subpaths: MyVec::<_>::from(
+                subpaths
+                    .iter()
+                    .map(|s| (s.start_index, s.end_index))
+                    .collect::<Vec<_>>(),
+            ),
+            runtime: time
+                .as_millis()
+                .try_into()
+                .expect("Couldn't convert run time into usize"),
+        };
+
+        s.non_opt_subpaths = Some(non_opt_subpaths);
+    }
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -78,39 +114,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .par_iter()
         .zip(statistics.par_iter_mut())
         .map(|(t, s)| (t.to_path(&graph, &edge_lookup), s))
-        .for_each(|(mut p, s)| {
-            let start = Instant::now();
-            graph.find_preference(&mut p);
-            let time = start.elapsed();
-            s.splitting_run_time = time
-                .as_millis()
-                .try_into()
-                .expect("Couldn't convert run time into usize");
-
-            if let Some(ref algo_split) = p.algo_split {
-                s.preferences = algo_split.alphas.clone();
-                s.cuts = algo_split.cuts.clone();
-
-                let start = Instant::now();
-
-                let ta = TrajectoryAnalysis::new(&graph);
-                let subpaths = ta.find_non_optimal_segments(&mut p);
-                let time = start.elapsed();
-                let non_opt_subpaths = NonOptSubPathsResult {
-                    non_opt_subpaths: MyVec::<_>::from(
-                        subpaths
-                            .iter()
-                            .map(|s| (s.start_index, s.end_index))
-                            .collect::<Vec<_>>(),
-                    ),
-                    runtime: time
-                        .as_millis()
-                        .try_into()
-                        .expect("Couldn't convert run time into usize"),
-                };
-
-                s.non_opt_subpaths = Some(non_opt_subpaths);
-            }
+        .for_each(|(mut p, mut s)| {
+            run_experiment(&graph, &mut p, &mut s);
             progress.inc(1);
         });
 
@@ -143,7 +148,4 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     outfile.write_all(serde_json::to_string_pretty(&results)?.as_bytes())?;
     Ok(())
-
-    // graph.find_preference(&mut path);
-    // // server::start_server(graph);
 }

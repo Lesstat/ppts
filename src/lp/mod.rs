@@ -58,7 +58,6 @@ impl<'a> PreferenceEstimator<'a> {
         let mut alpha = [1.0 / EDGE_COST_DIMENSION as f64; EDGE_COST_DIMENSION];
         prev_alphas.push(alpha);
         loop {
-            // println!("find shortest path");
             let result = self
                 .graph
                 .find_shortest_path(
@@ -108,7 +107,6 @@ impl<'a> PreferenceEstimator<'a> {
     fn solve_lp(&self) -> Option<Preference> {
         match self.solver.run(&self.problem) {
             Ok(solution) => {
-                // println!("Solver Status: {:?}", status);
                 let mut alpha = [0.0; EDGE_COST_DIMENSION];
                 let mut all_zero = true;
 
@@ -117,7 +115,6 @@ impl<'a> PreferenceEstimator<'a> {
                         if *value != 0.0 {
                             all_zero = false;
                         }
-                        // The order of variables in the HashMap is not fixed
                         for (index, tag) in ALPHABET
                             .chars()
                             .take(EDGE_COST_DIMENSION)
@@ -131,7 +128,6 @@ impl<'a> PreferenceEstimator<'a> {
                         }
                     }
                 }
-                // println!("Alpha: {:?}", alpha);
                 if all_zero {
                     return None;
                 }
