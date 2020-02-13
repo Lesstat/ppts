@@ -27,8 +27,15 @@ struct Opts {
 }
 
 fn run_experiment(graph: &Graph, p: &mut Path, s: &mut SplittingStatistics) {
+fn run_experiment<'a, 'b>(
+    graph: &'a Graph,
+    d: &'b mut Dijkstra<'a>,
+    p: &mut Path,
+    s: &mut SplittingStatistics,
+) {
     let start = Instant::now();
-    graph.find_preference(p);
+    let mut ta = TrajectoryAnalysis::new(&graph, d);
+    ta.find_preference(p);
     let time = start.elapsed();
     s.splitting_run_time = time
         .as_millis()

@@ -7,7 +7,6 @@ use path::{Path, PathSplit};
 
 use crate::graphml::{EdgeLookup, GraphData, GraphmlAttribute};
 use crate::helpers::{MyVec, Preference};
-use crate::lp::PreferenceEstimator;
 
 pub mod dijkstra;
 mod edge;
@@ -125,54 +124,6 @@ impl Graph {
             });
         }
         None
-    }
-
-    pub fn find_preference(&self, path: &mut Path) {
-        let path_length = path.nodes.len() as u32;
-        let mut cuts = MyVec::new();
-        let mut alphas = MyVec::new();
-        let mut start = 0u32;
-        let mut dijkstra = Dijkstra::new(self);
-
-        while start < path_length - 1 {
-            // println!("start: {}, path_length: {}", start, path_length);
-            let mut low = start;
-            let mut high = path_length;
-            let mut best_pref = None;
-            let mut best_cut = 0;
-            loop {
-                let m = (low + high) / 2;
-                // println!("searching for preference from {} to {} ", start, m);
-                if start == m {
-                    return;
-                }
-                let estimator = PreferenceEstimator::new(self);
-                let pref = estimator.calc_preference(&mut dijkstra, &path, start, m);
-                if pref.is_some() {
-                    low = m + 1;
-                    best_pref = pref;
-                    best_cut = m;
-                // println!("found pref {:?}", best_pref);
-                } else {
-                    high = m;
-                }
-                if low >= high {
-                    alphas.push(best_pref.unwrap());
-                    cuts.push(best_cut);
-                    break;
-                }
-            }
-            start = best_cut;
-            // println!("start at end of loop: {}", start);
-        }
-        let dimension_costs = MyVec::new();
-        let costs_by_alpha = MyVec::new();
-        path.algo_split = Some(PathSplit {
-            cuts,
-            alphas,
-            dimension_costs,
-            costs_by_alpha,
-        });
     }
 
     fn get_ch_edges_out(&self, node_id: u32) -> &[HalfEdge] {

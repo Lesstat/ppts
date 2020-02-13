@@ -1,14 +1,15 @@
 use super::dijkstra::Dijkstra;
-use super::path::Path;
+use super::path::{Path, PathSplit};
 use super::Graph;
-use crate::helpers::{Costs, Preference};
+use crate::helpers::{Costs, MyVec, Preference};
 use crate::lp::PreferenceEstimator;
 use crate::EDGE_COST_DIMENSION;
 
 pub mod evaluations;
 
-pub struct TrajectoryAnalysis<'a> {
+pub struct TrajectoryAnalysis<'a, 'b> {
     graph: &'a Graph,
+    dijkstra: &'b mut Dijkstra<'a>,
 }
 
 pub struct SubPath {
@@ -18,16 +19,57 @@ pub struct SubPath {
     pub end_index: u32,
 }
 
-impl<'a> TrajectoryAnalysis<'a> {
-    pub fn new(graph: &'a Graph) -> TrajectoryAnalysis<'a> {
-        TrajectoryAnalysis { graph }
+impl<'a, 'b> TrajectoryAnalysis<'a, 'b> {
+    pub fn new(graph: &'a Graph, dijkstra: &'b mut Dijkstra<'a>) -> TrajectoryAnalysis<'a, 'b> {
+        TrajectoryAnalysis { graph, dijkstra }
     }
 
-    pub fn find_non_optimal_segments(&self, path: &mut Path) -> Vec<SubPath> {
-        if path.algo_split.is_none() {
-            self.graph.find_preference(path);
+    pub fn find_preference(&mut self, path: &mut Path) {
+        let path_length = path.nodes.len() as u32;
+        let mut cuts = MyVec::new();
+        let mut alphas = MyVec::new();
+        let mut start = 0u32;
+
+        while start < path_length - 1 {
+            let mut low = start;
+            let mut high = path_length;
+            let mut best_pref = None;
+            let mut best_cut = 0;
+            loop {
+                let m = (low + high) / 2;
+                if start == m {
+                    return;
+                }
+                let estimator = PreferenceEstimator::new(self.graph);
+                let pref = estimator.calc_preference(self.dijkstra, &path, start, m);
+                if pref.is_some() {
+                    low = m + 1;
+                    best_pref = pref;
+                    best_cut = m;
+                } else {
+                    high = m;
+                }
+                if low >= high {
+                    alphas.push(best_pref.unwrap());
+                    cuts.push(best_cut);
+                    break;
+                }
+            }
+            start = best_cut;
         }
-        let mut d = Dijkstra::new(&self.graph);
+        let dimension_costs = MyVec::new();
+        let costs_by_alpha = MyVec::new();
+        path.algo_split = Some(PathSplit {
+            cuts,
+            alphas,
+            dimension_costs,
+            costs_by_alpha,
+        });
+    }
+    pub fn find_non_optimal_segments(&mut self, path: &mut Path) -> Vec<SubPath> {
+        if path.algo_split.is_none() {
+            self.find_preference(path);
+        }
 
         // Ignore last cut as it is the last node of the path
         if let Some((_, cut_indices)) = path.algo_split.as_ref().and_then(|s| s.cuts.split_last()) {
@@ -37,7 +79,7 @@ impl<'a> TrajectoryAnalysis<'a> {
                 loop {
                     let esti = PreferenceEstimator::new(&self.graph);
                     if esti
-                        .calc_preference(&mut d, &path, c - dist, c + 1)
+                        .calc_preference(self.dijkstra, &path, c - dist, c + 1)
                         .is_none()
                     {
                         let subpath = SubPath {
@@ -178,7 +220,7 @@ mod tests {
             .find_shortest_path(&mut d, 0, &[0, 1], EQUAL_WEIGHTS)
             .unwrap();
 
-        let ta = TrajectoryAnalysis::new(&linegraph);
+        let mut ta = TrajectoryAnalysis::new(&linegraph, &mut d);
 
         let non_opts = ta.find_non_optimal_segments(&mut path);
 
@@ -220,7 +262,7 @@ mod tests {
             .find_shortest_path(&mut d, 0, &[0, 2, 4], EQUAL_WEIGHTS)
             .unwrap();
 
-        let ta = TrajectoryAnalysis::new(&graph);
+        let mut ta = TrajectoryAnalysis::new(&graph, &mut d);
 
         let non_opts = ta.find_non_optimal_segments(&mut path);
 
@@ -266,7 +308,7 @@ mod tests {
             .find_shortest_path(&mut d, 0, &[0, 2, 5], EQUAL_WEIGHTS)
             .unwrap();
 
-        let ta = TrajectoryAnalysis::new(&graph);
+        let mut ta = TrajectoryAnalysis::new(&graph, &mut d);
 
         let non_opts = ta.find_non_optimal_segments(&mut path);
 
@@ -318,7 +360,7 @@ mod tests {
             .find_shortest_path(&mut d, 0, &[0, 2, 3, 6], EQUAL_WEIGHTS)
             .unwrap();
 
-        let ta = TrajectoryAnalysis::new(&graph);
+        let mut ta = TrajectoryAnalysis::new(&graph, &mut d);
 
         let non_opts = ta.find_non_optimal_segments(&mut path);
 
