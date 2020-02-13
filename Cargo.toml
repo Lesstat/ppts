@@ -17,6 +17,7 @@ rayon = "1.*"
 osmpbfreader = "0.13.0"
 structopt = "^0.3"
 rand = "^0.7"
+crossbeam = "^0.7"
 
 [dev-dependencies]
 criterion = "^0.3"
