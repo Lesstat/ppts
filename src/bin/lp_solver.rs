@@ -1,3 +1,5 @@
+use preference_splitting::EDGE_COST_DIMENSION;
+
 use glpk_sys::*;
 use structopt::StructOpt;
 
@@ -98,7 +100,7 @@ impl Lp {
         }
     }
 
-    fn solve(&mut self) -> Result<Vec<f64>, LpError> {
+    fn solve(&mut self) -> Result<[f64; EDGE_COST_DIMENSION + 1], LpError> {
         unsafe {
             let mut params = glp_smcp::default();
             glp_init_smcp(&mut params);
@@ -114,7 +116,7 @@ impl Lp {
             } else {
                 return Err(LpError::Infeasible);
             }
-            let mut result = vec![0.0; self.dim as usize + 1];
+            let mut result = [0.0; EDGE_COST_DIMENSION + 1];
             for i in 0..self.dim {
                 result[i as usize] = glp_get_col_prim(self.lp, i + 1);
             }
@@ -138,15 +140,15 @@ struct Opts {
     dim: c_int,
 }
 
+const F64_SIZE: usize = std::mem::size_of::<f64>();
+const BUFFER_SIZE: usize = F64_SIZE * EDGE_COST_DIMENSION;
+const OUTPUT_BUFFER_SIZE: usize = F64_SIZE * (EDGE_COST_DIMENSION + 1);
+
 fn main() -> Result<(), Box<dyn Error>> {
     use std::io::{BufReader, BufWriter, Read, Write};
     let Opts { dim } = Opts::from_args();
 
-    const F64_SIZE: usize = std::mem::size_of::<f64>();
-
-    let buffer_size = dim as usize * F64_SIZE;
-
-    let mut buffer = vec![0u8; buffer_size];
+    let mut buffer = [0u8; BUFFER_SIZE];
     let stdin = std::io::stdin();
     let stdin = stdin.lock();
     let mut reader = BufReader::new(stdin);
@@ -171,10 +173,14 @@ fn main() -> Result<(), Box<dyn Error>> {
             lp.add_constraint(&values);
             match lp.solve() {
                 Ok(results) => {
-                    let output: Vec<u8> = results
-                        .into_iter()
-                        .flat_map(|f| f.to_ne_bytes().iter().copied().collect::<Vec<u8>>())
-                        .collect();
+                    let mut output = [0u8; OUTPUT_BUFFER_SIZE];
+
+                    results
+                        .iter()
+                        .zip(output.chunks_exact_mut(F64_SIZE))
+                        .for_each(|(f, slice)| {
+                            slice.copy_from_slice(&f.to_ne_bytes());
+                        });
 
                     writer.write_all(&output).unwrap();
                 }

@@ -140,3 +140,40 @@ impl<'a> PreferenceEstimator<'a> {
         }
     }
 }
+
+use crate::helpers::Costs;
+use crate::MyResult;
+use std::process::{Child, Command, Stdio};
+
+pub struct LpProcess {
+    lp: Child,
+}
+
+impl LpProcess {
+    pub fn new() -> MyResult<LpProcess> {
+        let lp = Command::new("lp_solver")
+            .arg(EDGE_COST_DIMENSION.to_string())
+            .stdout(Stdio::piped())
+            .stdin(Stdio::piped())
+            .spawn()?;
+
+        Ok(Self { lp })
+    }
+
+    pub fn add_constraint(&mut self, costs: &Costs) -> MyResult<()> {
+        use std::io::{BufWriter, Write};
+
+        let child_stdin = self.lp.stdin.take().unwrap();
+
+        let mut b = BufWriter::new(child_stdin);
+
+        let write_buffer: Vec<_> = costs
+            .iter()
+            .flat_map(|c| c.to_ne_bytes().iter().copied().collect::<Vec<_>>())
+            .collect();
+
+        b.write_all(&write_buffer)?;
+
+        Ok(())
+    }
+}
