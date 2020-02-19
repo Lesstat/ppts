@@ -8,10 +8,12 @@ use preference_splitting::graph::trajectory_analysis::TrajectoryAnalysis;
 use preference_splitting::graph::{parse_minimal_graph_file, Graph};
 use preference_splitting::graphml::{read_graphml, AttributeType, GraphData};
 use preference_splitting::helpers::MyVec;
+use preference_splitting::lp::LpProcess;
 use preference_splitting::statistics::{
     NonOptSubPathsResult, SplittingResults, SplittingStatistics,
 };
 use preference_splitting::trajectories::{check_trajectory, read_trajectories};
+use preference_splitting::MyResult;
 use preference_splitting::{MyError, EDGE_COST_DIMENSION};
 
 use chrono::prelude::*;
@@ -35,12 +37,13 @@ struct Opts {
 fn run_experiment<'a, 'b>(
     graph: &'a Graph,
     d: &'b mut Dijkstra<'a>,
+    lp: &'b mut LpProcess,
     p: &mut Path,
     s: &mut SplittingStatistics,
-) {
+) -> MyResult<()> {
     let start = Instant::now();
-    let mut ta = TrajectoryAnalysis::new(&graph, d);
-    ta.find_preference(p);
+    let mut ta = TrajectoryAnalysis::new(graph, d, lp);
+    ta.find_preference(p)?;
     let time = start.elapsed();
     s.splitting_run_time = time
         .as_millis()
@@ -53,7 +56,7 @@ fn run_experiment<'a, 'b>(
 
         let start = Instant::now();
 
-        let subpaths = ta.find_non_optimal_segments(p);
+        let subpaths = ta.find_non_optimal_segments(p)?;
         let time = start.elapsed();
         let non_opt_subpaths = NonOptSubPathsResult {
             non_opt_subpaths: MyVec::<_>::from(
@@ -70,6 +73,7 @@ fn run_experiment<'a, 'b>(
 
         s.non_opt_subpaths = Some(non_opt_subpaths);
     }
+    Ok(())
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -134,8 +138,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         for chunk in paths.chunks_mut(items_per_thread) {
             (scope.spawn(|_| {
                 let mut d = Dijkstra::new(&graph);
+                let mut lp = LpProcess::new().unwrap();
                 for (p, s) in chunk {
-                    run_experiment(&graph, &mut d, p, s);
+                    run_experiment(&graph, &mut d, &mut lp, p, s).expect("Something failed");
                 }
             }));
         }

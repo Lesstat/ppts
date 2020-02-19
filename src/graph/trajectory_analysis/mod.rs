@@ -2,7 +2,8 @@ use super::dijkstra::Dijkstra;
 use super::path::{Path, PathSplit};
 use super::Graph;
 use crate::helpers::{Costs, MyVec, Preference};
-use crate::lp::PreferenceEstimator;
+use crate::lp::{LpProcess, PreferenceEstimator};
+use crate::MyResult;
 use crate::EDGE_COST_DIMENSION;
 
 pub mod evaluations;
@@ -10,6 +11,7 @@ pub mod evaluations;
 pub struct TrajectoryAnalysis<'a, 'b> {
     graph: &'a Graph,
     dijkstra: &'b mut Dijkstra<'a>,
+    lp: &'b mut LpProcess,
 }
 
 pub struct SubPath {
@@ -20,11 +22,19 @@ pub struct SubPath {
 }
 
 impl<'a, 'b> TrajectoryAnalysis<'a, 'b> {
-    pub fn new(graph: &'a Graph, dijkstra: &'b mut Dijkstra<'a>) -> TrajectoryAnalysis<'a, 'b> {
-        TrajectoryAnalysis { graph, dijkstra }
+    pub fn new(
+        graph: &'a Graph,
+        dijkstra: &'b mut Dijkstra<'a>,
+        lp: &'b mut LpProcess,
+    ) -> TrajectoryAnalysis<'a, 'b> {
+        TrajectoryAnalysis {
+            graph,
+            dijkstra,
+            lp,
+        }
     }
 
-    pub fn find_preference(&mut self, path: &mut Path) {
+    pub fn find_preference(&mut self, path: &mut Path) -> MyResult<()> {
         let path_length = path.nodes.len() as u32;
         let mut cuts = MyVec::new();
         let mut alphas = MyVec::new();
@@ -38,10 +48,10 @@ impl<'a, 'b> TrajectoryAnalysis<'a, 'b> {
             loop {
                 let m = (low + high) / 2;
                 if start == m {
-                    return;
+                    return Ok(());
                 }
-                let estimator = PreferenceEstimator::new(self.graph);
-                let pref = estimator.calc_preference(self.dijkstra, &path, start, m);
+                let estimator = PreferenceEstimator::new(self.graph, self.lp);
+                let pref = estimator.calc_preference(self.dijkstra, &path, start, m)?;
                 if pref.is_some() {
                     low = m + 1;
                     best_pref = pref;
@@ -65,10 +75,12 @@ impl<'a, 'b> TrajectoryAnalysis<'a, 'b> {
             dimension_costs,
             costs_by_alpha,
         });
+
+        Ok(())
     }
-    pub fn find_non_optimal_segments(&mut self, path: &mut Path) -> Vec<SubPath> {
+    pub fn find_non_optimal_segments(&mut self, path: &mut Path) -> MyResult<Vec<SubPath>> {
         if path.algo_split.is_none() {
-            self.find_preference(path);
+            self.find_preference(path)?;
         }
 
         // Ignore last cut as it is the last node of the path
@@ -77,9 +89,9 @@ impl<'a, 'b> TrajectoryAnalysis<'a, 'b> {
             for c in cut_indices {
                 let mut dist = 1;
                 loop {
-                    let esti = PreferenceEstimator::new(&self.graph);
+                    let esti = PreferenceEstimator::new(&self.graph, self.lp);
                     if esti
-                        .calc_preference(self.dijkstra, &path, c - dist, c + 1)
+                        .calc_preference(self.dijkstra, &path, c - dist, c + 1)?
                         .is_none()
                     {
                         let subpath = SubPath {
@@ -92,9 +104,9 @@ impl<'a, 'b> TrajectoryAnalysis<'a, 'b> {
                     dist += 1;
                 }
             }
-            res
+            Ok(res)
         } else {
-            Vec::new()
+            Ok(Vec::new())
         }
     }
 }
