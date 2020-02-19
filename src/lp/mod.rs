@@ -87,7 +87,9 @@ pub struct LpProcess {
 
 impl LpProcess {
     pub fn new() -> MyResult<LpProcess> {
-        let lp = Command::new("./target/release/lp_solver")
+        let mut path = std::env::current_exe().unwrap();
+        path.pop();
+        let lp = Command::new(format!("{}/lp_solver", path.to_str().unwrap()))
             .stdout(Stdio::piped())
             .stdin(Stdio::piped())
             .spawn()?;
