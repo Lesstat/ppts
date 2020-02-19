@@ -50,18 +50,14 @@ impl<'a, 'b> PreferenceEstimator<'a, 'b> {
                 let res = Some(alpha);
                 return Ok(res);
             }
-            let mut costs: Costs = [0.0; EDGE_COST_DIMENSION];
+            let mut cost_dif: Costs = [0.0; EDGE_COST_DIMENSION];
 
-            costs
+            cost_dif
                 .iter_mut()
-                .zip(
-                    path.total_dimension_costs
-                        .iter()
-                        .zip(result.total_dimension_costs.iter()),
-                )
+                .zip(costs.iter().zip(result.total_dimension_costs.iter()))
                 .for_each(|(c, (p, r))| *c = r - p);
 
-            self.lp.add_constraint(&costs)?;
+            self.lp.add_constraint(&cost_dif)?;
             match self.lp.solve()? {
                 Some(result) => {
                     if prev_alphas.iter().any(|a| a == &result) {

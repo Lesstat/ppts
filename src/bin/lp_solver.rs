@@ -5,6 +5,7 @@ use glpk_sys::*;
 
 use std::error::Error;
 use std::ffi::CString;
+use std::io::{BufReader, BufWriter, Read, Write};
 use std::os::raw::c_int;
 
 const DIM: c_int = EDGE_COST_DIMENSION as c_int;
@@ -136,8 +137,6 @@ impl Drop for Lp {
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
-    use std::io::{BufReader, BufWriter, Read, Write};
-
     unsafe {
         glp_term_out(GLP_OFF);
     }
