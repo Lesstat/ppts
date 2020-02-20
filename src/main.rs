@@ -141,6 +141,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 let mut lp = LpProcess::new().unwrap();
                 for (p, s) in chunk {
                     run_experiment(&graph, &mut d, &mut lp, p, s).expect("Something failed");
+                    progress.inc(1);
                 }
             }));
         }
