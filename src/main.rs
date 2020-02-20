@@ -124,7 +124,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             .progress_chars("#>-"),
     );
 
-    progress.set_draw_delta((trajectories.len().min(100)).try_into().unwrap());
+    progress.set_draw_delta((trajectories.len().min(1000)).try_into().unwrap());
 
     let mut paths: Vec<_> = trajectories
         .into_iter()
@@ -139,9 +139,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             (scope.spawn(|_| {
                 let mut d = Dijkstra::new(&graph);
                 let mut lp = LpProcess::new().unwrap();
+                let mut counter = 0;
                 for (p, s) in chunk {
                     run_experiment(&graph, &mut d, &mut lp, p, s).expect("Something failed");
-                    progress.inc(1);
+                    if counter % 10 == 0 {
+                        progress.inc(10);
+                    }
+                    counter += 1;
                 }
             }));
         }
