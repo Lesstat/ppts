@@ -152,8 +152,8 @@ impl LpProcess {
                     .collect();
                 let mut pref: Preference = [0.0; EDGE_COST_DIMENSION];
                 pref.iter_mut()
-                    .zip(result.iter())
-                    .for_each(|(p, r)| *p = *r);
+                    .zip(result.iter().map(|r| r.max(0.0)))
+                    .for_each(|(p, r)| *p = r);
                 Ok(Some(pref))
             }
             1 => Ok(None),
