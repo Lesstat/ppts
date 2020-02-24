@@ -232,9 +232,11 @@ mod tests {
             .find_shortest_path(&mut d, 0, &[0, 1], EQUAL_WEIGHTS)
             .unwrap();
 
-        let mut ta = TrajectoryAnalysis::new(&linegraph, &mut d);
+        let mut lp = LpProcess::new().unwrap();
 
-        let non_opts = ta.find_non_optimal_segments(&mut path);
+        let mut ta = TrajectoryAnalysis::new(&linegraph, &mut d, &mut lp);
+
+        let non_opts = ta.find_non_optimal_segments(&mut path).unwrap();
 
         assert!(non_opts.is_empty());
     }
@@ -273,10 +275,10 @@ mod tests {
         let mut path = graph
             .find_shortest_path(&mut d, 0, &[0, 2, 4], EQUAL_WEIGHTS)
             .unwrap();
+        let mut lp = LpProcess::new().unwrap();
+        let mut ta = TrajectoryAnalysis::new(&graph, &mut d, &mut lp);
 
-        let mut ta = TrajectoryAnalysis::new(&graph, &mut d);
-
-        let non_opts = ta.find_non_optimal_segments(&mut path);
+        let non_opts = ta.find_non_optimal_segments(&mut path).unwrap();
 
         assert_eq!(1, non_opts.len());
         assert_eq!(1, non_opts[0].start_index);
@@ -319,10 +321,10 @@ mod tests {
         let mut path = graph
             .find_shortest_path(&mut d, 0, &[0, 2, 5], EQUAL_WEIGHTS)
             .unwrap();
+        let mut lp = LpProcess::new().unwrap();
+        let mut ta = TrajectoryAnalysis::new(&graph, &mut d, &mut lp);
 
-        let mut ta = TrajectoryAnalysis::new(&graph, &mut d);
-
-        let non_opts = ta.find_non_optimal_segments(&mut path);
+        let non_opts = ta.find_non_optimal_segments(&mut path).unwrap();
 
         assert_eq!(1, non_opts.len());
         assert_eq!(1, non_opts[0].start_index);
@@ -371,10 +373,10 @@ mod tests {
         let mut path = graph
             .find_shortest_path(&mut d, 0, &[0, 2, 3, 6], EQUAL_WEIGHTS)
             .unwrap();
+        let mut lp = LpProcess::new().unwrap();
+        let mut ta = TrajectoryAnalysis::new(&graph, &mut d, &mut lp);
 
-        let mut ta = TrajectoryAnalysis::new(&graph, &mut d);
-
-        let non_opts = ta.find_non_optimal_segments(&mut path);
+        let non_opts = ta.find_non_optimal_segments(&mut path).unwrap();
 
         assert_eq!(2, non_opts.len());
         assert_eq!(1, non_opts[0].start_index);

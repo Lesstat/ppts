@@ -89,7 +89,8 @@ impl LpProcess {
     pub fn new() -> MyResult<LpProcess> {
         let mut path = std::env::current_exe().unwrap();
         path.pop();
-        let lp = Command::new(format!("{}/lp_solver", path.to_str().unwrap()))
+        let path_to_lp_solver = format!("{}/lp_solver", path.to_str().unwrap());
+        let lp = Command::new(path_to_lp_solver)
             .stdout(Stdio::piped())
             .stdin(Stdio::piped())
             .spawn()?;
