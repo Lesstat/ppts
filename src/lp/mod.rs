@@ -89,8 +89,16 @@ impl LpProcess {
     pub fn new() -> MyResult<LpProcess> {
         let mut path = std::env::current_exe().unwrap();
         path.pop();
-        let path_to_lp_solver = format!("{}/lp_solver", path.to_str().unwrap());
-        let lp = Command::new(path_to_lp_solver)
+        path.push("lp_solver");
+
+        // In case we run tests, we run from the deps directory...
+        if !path.exists() {
+            path.pop();
+            path.pop();
+            path.push("lp_solver");
+        }
+
+        let lp = Command::new(&path)
             .stdout(Stdio::piped())
             .stdin(Stdio::piped())
             .spawn()?;
