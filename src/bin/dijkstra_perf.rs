@@ -86,11 +86,8 @@ fn main() -> Result<(), Box<dyn Error>> {
         found_routes, missed_routes
     );
 
-    let average_duration = whole_time / opts.routes;
-    println!(
-        "Average time per Dijkstra run is {}ms",
-        average_duration.as_millis()
-    );
+    let average_duration = whole_time.as_secs_f64() / opts.routes as f64;
+    println!("Average time per Dijkstra run is {}s", average_duration);
 
     Ok(())
 }
