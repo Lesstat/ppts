@@ -1,14 +1,12 @@
 use preference_splitting::graph::dijkstra::{find_path, Dijkstra};
 use preference_splitting::graph::parse_minimal_graph_file;
 use preference_splitting::graphml::read_graphml;
-use preference_splitting::helpers::Preference;
-use preference_splitting::EDGE_COST_DIMENSION;
+use preference_splitting::helpers::randomized_preference;
 
 use std::error::Error;
 use std::time::{Duration, Instant};
 
 use rand::distributions::{Distribution, Uniform};
-use rand::prelude::ThreadRng;
 use structopt::StructOpt;
 
 #[derive(StructOpt)]
@@ -21,21 +19,6 @@ struct Opts {
     /// File should be read as graphml
     #[structopt(long = "graphml")]
     graphml_format: bool,
-}
-
-fn randomized_preference(rng: &mut ThreadRng) -> Preference {
-    let mut result = [0.0; EDGE_COST_DIMENSION];
-    let (last, elements) = result.split_last_mut().unwrap();
-    let mut rest = 1.0;
-    for r in elements.iter_mut() {
-        let pref_dist = Uniform::new(0.0, rest);
-        let a: f64 = pref_dist.sample(rng);
-        *r = a;
-        rest -= a;
-    }
-    *last = rest;
-
-    result
 }
 
 fn main() -> Result<(), Box<dyn Error>> {

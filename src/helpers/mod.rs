@@ -1,5 +1,9 @@
 use crate::EDGE_COST_DIMENSION;
 
+use rand::{
+    distributions::{Distribution, Uniform},
+    prelude::ThreadRng,
+};
 use serde::{Deserialize, Serialize};
 use std::ops::{Deref, DerefMut, Index, IndexMut, Range, RangeInclusive};
 
@@ -104,6 +108,21 @@ impl<T> DerefMut for MyVec<T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0
     }
+}
+
+pub fn randomized_preference(rng: &mut ThreadRng) -> Preference {
+    let mut result = [0.0; EDGE_COST_DIMENSION];
+    let (last, elements) = result.split_last_mut().unwrap();
+    let mut rest = 1.0;
+    for r in elements.iter_mut() {
+        let pref_dist = Uniform::new(0.0, rest);
+        let a: f64 = pref_dist.sample(rng);
+        *r = a;
+        rest -= a;
+    }
+    *last = rest;
+
+    result
 }
 
 #[cfg(test)]
