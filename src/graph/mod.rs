@@ -265,7 +265,10 @@ pub fn parse_minimal_graph_file(file_path: &str) -> Result<GraphData, Box<dyn st
             continue;
         }
         if parsed_nodes < num_of_nodes {
-            nodes.push(Node::new(tokens[0].parse()?, tokens[1].parse()?));
+            nodes.push(Node::new(
+                tokens[0].parse()?,
+                tokens[1].parse().unwrap_or(0),
+            ));
             parsed_nodes += 1;
         } else if parsed_edges < num_of_edges {
             let replaced_edges = if tokens[tokens.len() - 2] == "-1" {
