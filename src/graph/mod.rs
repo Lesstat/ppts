@@ -7,6 +7,7 @@ use path::{Path, PathSplit};
 
 use crate::graphml::{EdgeLookup, GraphData, GraphmlAttribute};
 use crate::helpers::{MyVec, Preference};
+use std::collections::HashMap;
 
 pub mod dijkstra;
 mod edge;
@@ -36,24 +37,46 @@ impl Graph {
         let mut half_edges_out = MyVec(Vec::new());
         let mut half_edges_in = MyVec(Vec::new());
 
-        // sort nodes by id
-        nodes.sort_by(|a, b| a.id.cmp(&b.id));
+        nodes.sort_by(|a, b| b.ch_level.cmp(&a.ch_level));
+        let mut id_map = HashMap::new();
+        for (i, n) in nodes.0.iter_mut().enumerate() {
+            id_map.insert(n.id, i as u32);
+            n.id = i as u32;
+        }
+
+        edges.iter_mut().for_each(|e| {
+            e.source_id = id_map[&e.source_id];
+            e.target_id = id_map[&e.target_id]
+        });
 
         // half_edges and offsets out
-        edges.sort_by(|a, b| a.source_id.cmp(&b.source_id));
+        edges.sort_by(|a, b| {
+            a.source_id.cmp(&b.source_id).then_with(|| {
+                nodes[b.target_id]
+                    .ch_level
+                    .cmp(&nodes[a.target_id].ch_level)
+            })
+        });
+
         edges
             .iter()
-            .filter(|edge| nodes[edge.target_id].ch_level >= nodes[edge.source_id].ch_level)
+            // .filter(|edge| nodes[edge.target_id].ch_level >= nodes[edge.source_id].ch_level)
             .for_each(|edge| {
                 offsets_out[edge.source_id + 1] += 1;
                 half_edges_out.push(HalfEdge::new(edge.id, edge.target_id, edge.edge_costs));
             });
 
         // half_edges and offsets in
-        edges.sort_by(|a, b| a.target_id.cmp(&b.target_id));
+        edges.sort_by(|a, b| {
+            a.target_id.cmp(&b.target_id).then_with(|| {
+                nodes[b.source_id]
+                    .ch_level
+                    .cmp(&nodes[a.source_id].ch_level)
+            })
+        });
         edges
             .iter()
-            .filter(|edge| nodes[edge.source_id].ch_level >= nodes[edge.target_id].ch_level)
+            // .filter(|edge| nodes[edge.source_id].ch_level >= nodes[edge.target_id].ch_level)
             .for_each(|edge| {
                 offsets_in[edge.target_id + 1] += 1;
                 half_edges_in.push(HalfEdge::new(edge.id, edge.source_id, edge.edge_costs));
