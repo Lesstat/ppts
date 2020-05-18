@@ -137,7 +137,7 @@ impl<'a> NDijkstra<'a> {
             .into();
 
         Some(Path {
-            id: 0,
+            id: vec![(None, 0)],
             nodes,
             edges,
             user_split: PathSplit {

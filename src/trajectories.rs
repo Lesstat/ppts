@@ -51,14 +51,7 @@ pub fn read_trajectories<P: AsRef<std::path::Path>>(
 
 impl Trajectory {
     pub fn to_path(&self, graph: &Graph, edge_lookup: &EdgeLookup) -> Path {
-        let id = self
-            .trip_id
-            .iter()
-            .filter_map(|i| i.0)
-            .map(|id| id.to_string())
-            .collect::<String>()
-            .parse()
-            .expect("Trip id not parseable");
+        let id = self.trip_id.clone();
         let edges: Vec<u32> = self
             .path
             .iter()

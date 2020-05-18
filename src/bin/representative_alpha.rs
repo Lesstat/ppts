@@ -102,7 +102,7 @@ fn main() -> MyResult<()> {
 
                 let path = graph_data.graph.find_shortest_path(
                     &mut d,
-                    p.id,
+                    p.id[0].0.unwrap_or(0),
                     &[*source_id, *target_id],
                     alpha,
                 );
@@ -116,7 +116,12 @@ fn main() -> MyResult<()> {
 
             let alpha_path = graph_data
                 .graph
-                .find_shortest_path(&mut d, p.id, &[*source_id, *target_id], alpha)
+                .find_shortest_path(
+                    &mut d,
+                    p.id[0].0.unwrap_or(0),
+                    &[*source_id, *target_id],
+                    alpha,
+                )
                 .unwrap();
 
             s.run_time = time

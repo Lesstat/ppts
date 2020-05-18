@@ -133,7 +133,7 @@ impl Graph {
             nodes.push(*include.last().unwrap());
 
             return Some(Path {
-                id,
+                id: vec![(Some(id), 0)],
                 nodes: MyVec(nodes),
                 edges: MyVec(edges),
                 user_split: PathSplit {

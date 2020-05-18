@@ -20,7 +20,7 @@ impl PathSplit {
 
 #[derive(Debug, Clone)]
 pub struct Path {
-    pub id: u32,
+    pub id: Vec<(Option<u32>, u32)>,
     pub nodes: MyVec<u32>,
     pub edges: MyVec<u32>,
     pub user_split: PathSplit,
