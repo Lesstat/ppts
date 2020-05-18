@@ -28,7 +28,15 @@ pub fn check_trajectory(tra: &Trajectory, graph: &Graph, edge_lookup: &EdgeLooku
         let edge0 = &graph.edges[*e0_idx];
         let edge1 = &graph.edges[*e1_idx];
 
-        edge0.target_id == edge1.source_id
+        let is_connected = edge0.target_id == edge1.source_id;
+
+        if !is_connected {
+            println!(
+                "trip {:?} is not connected between edges {} and {}",
+                tra.trip_id, window[0], window[1]
+            );
+        }
+        is_connected
     })
 }
 
