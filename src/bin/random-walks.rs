@@ -55,7 +55,7 @@ fn main() -> MyResult<()> {
                 create_randomwalk_trajectory(pair.0, pair.1, &graph_data.graph, &mut d, &mut rng);
 
             if let Some(ref mut tra) = tra {
-                tra.trip_id = -(i as i64);
+                tra.trip_id = vec![(Some(i as u32), 0)];
             }
 
             println!("finished {} walks", i);
