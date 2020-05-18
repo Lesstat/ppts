@@ -1,6 +1,10 @@
 use crate::{
-    graph::Graph,
-    helpers::{costs_by_alpha, MyVec, Preference},
+    graph::{
+        path::{Path, PathSplit},
+        Graph,
+    },
+    helpers::{add_edge_costs, costs_by_alpha, MyVec, Preference, EQUAL_WEIGHTS},
+    EDGE_COST_DIMENSION,
 };
 
 use ordered_float::OrderedFloat;
@@ -13,6 +17,7 @@ pub struct NDijkstra<'a> {
     heap: BinaryHeap<HeapElement>,
     touched: Vec<u32>,
     last_from: u32,
+    last_pref: Preference,
 }
 
 impl<'a> NDijkstra<'a> {
@@ -28,6 +33,7 @@ impl<'a> NDijkstra<'a> {
             heap,
             touched,
             last_from: u32::MAX,
+            last_pref: EQUAL_WEIGHTS,
         }
     }
 
@@ -42,26 +48,27 @@ impl<'a> NDijkstra<'a> {
 
     pub fn run(&mut self, from: u32, to: u32, alpha: &Preference) -> Option<f64> {
         // If the query starts from the same node as before we can reuse it
-        if self.last_from == from {
+        if self.last_from == from && self.last_pref == *alpha {
             if self.dist[to] < f64::MAX {
                 return Some(self.dist[to]);
             }
         } else {
             // If not we initialize it normally
             self.last_from = from;
+            self.last_pref = *alpha;
             self.reset_state();
 
             self.heap.push(HeapElement {
                 dist: 0.0,
                 node: from,
-                prev_node: from,
+                prev_edge: from,
             });
         }
 
         while let Some(HeapElement {
             dist: u_dist,
             node: u,
-            prev_node,
+            prev_edge,
         }) = self.heap.pop()
         {
             // If your heap does not support a decrease key operation, you can
@@ -73,7 +80,7 @@ impl<'a> NDijkstra<'a> {
             }
 
             self.dist[u] = u_dist;
-            self.prev[u] = Some(prev_node);
+            self.prev[u] = Some(prev_edge);
             self.touched.push(u);
 
             for edge in self.g.get_ch_edges_out(u) {
@@ -82,7 +89,7 @@ impl<'a> NDijkstra<'a> {
                     self.heap.push(HeapElement {
                         dist: alt,
                         node: edge.target_id,
-                        prev_node: u,
+                        prev_edge: edge.edge_id,
                     });
                 }
             }
@@ -95,13 +102,64 @@ impl<'a> NDijkstra<'a> {
 
         None
     }
+
+    pub fn path(&mut self, to: u32) -> Option<Path> {
+        if self.prev[to] == None {
+            let alpha = self.last_pref;
+            self.run(self.last_from, to, &alpha);
+        }
+        // early return if `to` is unreachable
+        self.prev[to]?;
+
+        let mut edges = MyVec::new();
+        let mut nodes = MyVec::new();
+        let mut total_dimension_costs = [0.0; EDGE_COST_DIMENSION];
+        let mut cur_node = to;
+
+        while cur_node != self.last_from {
+            let edge = self.prev[cur_node].expect("Previous Edge must exist");
+            edges.push(edge);
+            nodes.push(cur_node);
+            cur_node = self.g.edges[edge].source_id;
+            total_dimension_costs =
+                add_edge_costs(&self.g.edges[edge].edge_costs, &total_dimension_costs);
+        }
+
+        nodes.push(cur_node);
+
+        edges.reverse();
+        nodes.reverse();
+        let edges = edges
+            .0
+            .into_iter()
+            .flat_map(|e| self.g.unpack_edge(e))
+            .collect::<Vec<_>>()
+            .into();
+
+        Some(Path {
+            id: 0,
+            nodes,
+            edges,
+            user_split: PathSplit {
+                cuts: MyVec(vec![0]),
+                alphas: MyVec(vec![self.last_pref]),
+                dimension_costs: MyVec(vec![total_dimension_costs]),
+                costs_by_alpha: MyVec(vec![costs_by_alpha(
+                    &total_dimension_costs,
+                    &self.last_pref,
+                )]),
+            },
+            algo_split: None,
+            total_dimension_costs,
+        })
+    }
 }
 
 #[derive(Debug, PartialEq)]
 struct HeapElement {
     dist: f64,
     node: u32,
-    prev_node: u32,
+    prev_edge: u32,
 }
 
 impl Eq for HeapElement {}

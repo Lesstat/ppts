@@ -1,8 +1,5 @@
 use crate::graph::path::{Path, PathSplit};
-use crate::graph::{
-    dijkstra::{find_path, Dijkstra},
-    Graph,
-};
+use crate::graph::{dijkstra::Dijkstra, Graph};
 use crate::graphml::EdgeLookup;
 use crate::helpers::{randomized_preference, MyVec, EQUAL_WEIGHTS};
 
@@ -14,7 +11,7 @@ use std::string::ToString;
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Trajectory {
-    pub trip_id: i64,
+    pub trip_id: Vec<(Option<u32>, u32)>,
     pub vehicle_id: i64,
     pub path: MyVec<i64>,
 }
@@ -46,7 +43,14 @@ pub fn read_trajectories<P: AsRef<std::path::Path>>(
 
 impl Trajectory {
     pub fn to_path(&self, graph: &Graph, edge_lookup: &EdgeLookup) -> Path {
-        let id = self.trip_id as u32;
+        let id = self
+            .trip_id
+            .iter()
+            .filter_map(|i| i.0)
+            .map(|id| id.to_string())
+            .collect::<String>()
+            .parse()
+            .expect("Trip id not parseable");
         let edges: Vec<u32> = self
             .path
             .iter()
@@ -109,22 +113,25 @@ pub fn create_randomwalk_trajectory(
     let mut cur_node = source;
     let mut path = MyVec::new();
 
-    let _ = graph.find_shortest_path(d, 0, &[cur_node, target], EQUAL_WEIGHTS)?;
+    let _ = d.run(cur_node, target, EQUAL_WEIGHTS)?;
+
     while cur_node != target {
         let alpha = randomized_preference(rng);
-        let tmp_path = graph
-            .find_shortest_path(d, 0, &[cur_node, target], alpha)
+        let tmp_path = d
+            .run(cur_node, target, alpha)
             .expect("There must be a path");
-        find_path(d, &[cur_node, target], alpha)?;
 
         let first_edge = tmp_path.edges[0 as usize];
 
-        path.push(first_edge as i64);
-        cur_node = tmp_path.nodes[1 as usize];
+        let unpacked = &mut graph.unpack_edge(first_edge);
+        cur_node = graph.edges[unpacked[0]].target_id;
+        path.push(unpacked[0]);
     }
 
+    let path = path.iter().map(|&i| i as i64).collect::<Vec<_>>().into();
+
     Some(Trajectory {
-        trip_id: -1,
+        trip_id: vec![(None, 0)],
         vehicle_id: -1,
         path,
     })

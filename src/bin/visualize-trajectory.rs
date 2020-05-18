@@ -53,13 +53,13 @@ fn main() -> MyResult<()> {
 
     let trajectory = trajectories
         .iter()
-        .find(|t| t.trip_id == trajectory_id)
+        .find(|t| t.trip_id[0].0.unwrap_or(u32::MAX) as i64 == trajectory_id)
         .expect("could not find trajectory in trajectories file.");
 
     let splitting = splitting_results
         .results
         .iter()
-        .find(|s| s.trip_id == trajectory_id)
+        .find(|s| s.trip_id[0].0.unwrap_or(u32::MAX) as i64 == trajectory_id)
         .expect("could not find trajectory in splitting results.");
 
     println!("creating geojson");

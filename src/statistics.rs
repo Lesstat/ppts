@@ -8,7 +8,7 @@ use serde_json::from_reader;
 
 #[derive(Serialize, Deserialize, Default)]
 pub struct SplittingStatistics {
-    pub trip_id: i64,
+    pub trip_id: Vec<(Option<u32>, u32)>,
     vehicle_id: i64,
     trajectory_length: usize,
     pub removed_self_loop_indices: MyVec<u32>,
@@ -37,7 +37,7 @@ impl SplittingStatistics {
     pub fn new(t: &Trajectory) -> SplittingStatistics {
         let mut stat = SplittingStatistics::default();
 
-        stat.trip_id = t.trip_id;
+        stat.trip_id = t.trip_id.clone();
         stat.vehicle_id = t.vehicle_id;
         stat.trajectory_length = t.path.len() + 1; // no. of nodes
 

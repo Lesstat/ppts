@@ -36,7 +36,7 @@ struct Results {
 
 #[derive(Serialize, Deserialize)]
 struct AlphaStatistic {
-    trip_id: i64,
+    trip_id: Vec<(Option<u32>, u32)>,
     vehicle_id: i64,
     trajectory_length: usize,
     alpha: Preference,
@@ -165,7 +165,7 @@ fn main() -> MyResult<()> {
 impl AlphaStatistic {
     fn new(t: &Trajectory) -> Self {
         AlphaStatistic {
-            trip_id: t.trip_id,
+            trip_id: t.trip_id.clone(),
             vehicle_id: t.vehicle_id,
             trajectory_length: t.path.len() + 1,
             trajectory_cost: [0.0; EDGE_COST_DIMENSION],

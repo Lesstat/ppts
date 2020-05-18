@@ -19,6 +19,7 @@ pub struct HalfPath {
     pub costs_by_alpha: MyVec<f64>,
 }
 
+#[derive(Clone)]
 pub struct DijkstraResult {
     pub edges: MyVec<u32>,
     pub costs: Costs,
@@ -89,7 +90,7 @@ impl<'a> Dijkstra<'a> {
         self.best_node = None;
     }
 
-    fn run(&mut self, source: u32, target: u32, alpha: Preference) -> Option<DijkstraResult> {
+    pub fn run(&mut self, source: u32, target: u32, alpha: Preference) -> Option<DijkstraResult> {
         self.prepare(source, target);
 
         // let now = Instant::now();
@@ -252,17 +253,12 @@ mod tests {
     use super::*;
     use crate::graph::{parse_graph_file, Graph};
 
-    fn get_graph() -> Graph {
-        parse_graph_file("./src/test_graphs/testGraph").unwrap()
-    }
-
     fn get_conc_graph() -> Graph {
         parse_graph_file("./src/test_graphs/concTestGraph").unwrap()
     }
 
     #[test]
     fn normal_case() {
-        let graph = get_graph();
         let conc_graph = get_conc_graph();
         let mut dijkstra = NDijkstra::new(&conc_graph);
         let mut dijkstra_conc = Dijkstra::new(&conc_graph);
@@ -275,9 +271,20 @@ mod tests {
 
         for s in 0..(conc_graph.nodes.len() as u32) {
             for t in 0..(conc_graph.nodes.len() as u32) {
+                let ch_path = dijkstra_conc.run(s, t, alpha);
+                let n_costs = dijkstra.run(s, t, &alpha);
+                assert_eq!(ch_path.as_ref().map(|r| r.total_cost), n_costs);
+
+                let n_path = dijkstra.path(t);
+
                 assert_eq!(
-                    dijkstra.run(s, t, &alpha),
-                    dijkstra_conc.run(s, t, alpha).map(|r| r.total_cost)
+                    ch_path.map(|r| r
+                        .edges
+                        .0
+                        .into_iter()
+                        .flat_map(|e| conc_graph.unpack_edge(e))
+                        .collect()),
+                    n_path.map(|r| r.edges.0)
                 );
             }
         }

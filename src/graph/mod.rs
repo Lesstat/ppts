@@ -157,7 +157,7 @@ impl Graph {
         &self.half_edges_in[self.offsets_in[node_id]..self.offsets_in[node_id + 1]]
     }
 
-    fn unpack_edge(&self, edge: u32) -> Vec<u32> {
+    pub fn unpack_edge(&self, edge: u32) -> Vec<u32> {
         if let Some((edge1, edge2)) = self.edges[edge].replaced_edges {
             let mut first = self.unpack_edge(edge1);
             first.extend(self.unpack_edge(edge2).iter());
