@@ -57,8 +57,9 @@ fn main() -> Result<(), Box<dyn Error>> {
         writer.write_fmt(format_args!("{} {}\n", n.id, ch_level))?;
     }
 
-    for e in graph_data.graph.edges.iter() {
-        writer.write_fmt(format_args!("{} {} {}", e.id, e.source_id, e.target_id))?;
+    for (id, idx) in graph_data.edge_lookup {
+        let e = &graph_data.graph.edges[idx];
+        writer.write_fmt(format_args!("{} {} {}", id, e.source_id, e.target_id))?;
         for c in e.edge_costs.iter() {
             writer.write_fmt(format_args!(" {}", c))?;
         }
