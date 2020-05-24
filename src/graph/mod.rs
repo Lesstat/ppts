@@ -159,6 +159,21 @@ impl Graph {
 
     pub fn unpack_edge(&self, edge: u32) -> Vec<u32> {
         if let Some((edge1, edge2)) = self.edges[edge].replaced_edges {
+            if self.edges[edge1].source_id != self.edges[edge].source_id {
+                panic!(
+                    "shortcut {} starts at different edge than replaced edge {}",
+                    edge, edge1
+                );
+            }
+            if self.edges[edge2].target_id != self.edges[edge].target_id {
+                panic!(
+                    "shortcut {} ends at different edge than replaced edge {}",
+                    edge, edge2
+                );
+            }
+            if self.edges[edge1].target_id != self.edges[edge2].source_id {
+                panic!("shortcut edges not connected {} & {}", edge1, edge2);
+            }
             let mut first = self.unpack_edge(edge1);
             first.extend(self.unpack_edge(edge2).iter());
             return first;
@@ -233,7 +248,9 @@ pub fn parse_graph_file(file_path: &str) -> Result<Graph, Box<dyn std::error::Er
     Ok(Graph::new(nodes, edges))
 }
 
-pub fn parse_minimal_graph_file(file_path: &str) -> Result<GraphData, Box<dyn std::error::Error>> {
+pub fn parse_minimal_graph_file(
+    file_path: impl AsRef<std::path::Path>,
+) -> Result<GraphData, Box<dyn std::error::Error>> {
     use crate::EDGE_COST_DIMENSION;
     use std::fs::File;
     use std::io::{BufRead, BufReader};
@@ -281,19 +298,25 @@ pub fn parse_minimal_graph_file(file_path: &str) -> Result<GraphData, Box<dyn st
         .parse()?;
 
     let mut parsed_nodes: usize = 0;
-    let mut parsed_edges: u32 = 0;
+    let mut parsed_edges = 0;
     while let Some(Ok(line)) = lines.next() {
         let tokens: Vec<&str> = line.split_whitespace().collect();
         if tokens[0] == "#" || tokens[0] == "\n" {
             continue;
         }
         if parsed_nodes < num_of_nodes {
+            if tokens.len() != 2 {
+                panic!("Not right amount of information for a node");
+            }
             nodes.push(Node::new(
                 tokens[0].parse()?,
                 tokens[1].parse().unwrap_or(0),
             ));
             parsed_nodes += 1;
         } else if parsed_edges < num_of_edges {
+            if tokens.len() != 5 + EDGE_COST_DIMENSION {
+                panic!("Not right amount of information for an edge");
+            }
             let replaced_edges = if tokens[tokens.len() - 2] == "-1" {
                 None
             } else {
@@ -313,6 +336,10 @@ pub fn parse_minimal_graph_file(file_path: &str) -> Result<GraphData, Box<dyn st
             parsed_edges += 1;
         } else {
             panic!("Something doesn't add up with the amount of nodes and edges in graph file");
+        }
+
+        if nodes.len() != parsed_nodes || edges.len() != parsed_edges as usize {
+            panic!("Not enough nodes or edges parsed");
         }
     }
     let graph = Graph::new(nodes, edges);
