@@ -58,7 +58,7 @@ fn main() -> MyResult<()> {
         .collect::<Vec<_>>();
 
     idx_to_id.sort_by_key(|t| t.0);
-    let idx_to_id = idx_to_id.into_iter().map(|(_, id)| id).collect();
+    let idx_to_id = idx_to_id.into_iter().map(|(_, id)| id).collect::<Vec<_>>();
 
     let mut walks: Vec<_> = pairs
         .iter()
