@@ -16,12 +16,13 @@ impl<'a, 'b> PreferenceEstimator<'a, 'b> {
     }
 
     pub fn calc_preference(
-        self,
+        &mut self,
         dijkstra: &mut Dijkstra,
         path: &Path,
         source_idx: u32,
         target_idx: u32,
     ) -> MyResult<Option<Preference>> {
+        self.lp.reset().expect("LP Process could not be reset");
         let costs = path.get_subpath_costs(self.graph, source_idx, target_idx);
 
         let mut prev_alphas: Vec<Preference> = Vec::new();
@@ -75,10 +76,11 @@ impl<'a, 'b> PreferenceEstimator<'a, 'b> {
     }
 
     pub fn calc_representative_preference(
-        self,
+        &mut self,
         dijkstra: &mut Dijkstra,
         path: &Path,
     ) -> MyResult<Preference> {
+        self.lp.reset().expect("LP Process could not be reset");
         let costs = path.total_dimension_costs;
 
         let accuracy = 0.0001;
@@ -256,7 +258,7 @@ fn test_calc_representative_preference() {
 
     let mut lp = LpProcess::new().unwrap();
 
-    let estimator = PreferenceEstimator::new(&graph, &mut lp);
+    let mut estimator = PreferenceEstimator::new(&graph, &mut lp);
 
     let path = graph
         .find_shortest_path(&mut dijkstra, 0, &[0, 1, 2], EQUAL_WEIGHTS)
@@ -268,7 +270,6 @@ fn test_calc_representative_preference() {
 
     assert_eq!(None, opt);
 
-    let estimator = PreferenceEstimator::new(&graph, &mut lp);
     let representative = estimator
         .calc_representative_preference(&mut dijkstra, &path)
         .unwrap();
@@ -294,7 +295,7 @@ fn test_calc_mixed_representative_preference() {
 
     let mut lp = LpProcess::new().unwrap();
 
-    let estimator = PreferenceEstimator::new(&graph, &mut lp);
+    let mut estimator = PreferenceEstimator::new(&graph, &mut lp);
 
     let path = graph
         .find_shortest_path(&mut dijkstra, 0, &[0, 1, 2], EQUAL_WEIGHTS)
@@ -306,7 +307,6 @@ fn test_calc_mixed_representative_preference() {
 
     assert_eq!(None, opt);
 
-    let estimator = PreferenceEstimator::new(&graph, &mut lp);
     let representative = estimator
         .calc_representative_preference(&mut dijkstra, &path)
         .unwrap();

@@ -1,19 +1,22 @@
 use preference_splitting::graph::dijkstra::Dijkstra;
-use preference_splitting::graph::parse_minimal_graph_file;
-use preference_splitting::graph::trajectory_analysis::get_linear_combination;
-use preference_splitting::graphml::AttributeType;
-use preference_splitting::helpers::{Costs, Preference};
-use preference_splitting::trajectories::{check_trajectory, read_trajectories, Trajectory};
-use preference_splitting::{MyError, MyResult, EDGE_COST_DIMENSION};
+use preference_splitting::graph::{
+    parse_minimal_graph_file, trajectory_analysis::evaluations::overlap,
+};
+
+use preference_splitting::graphml::{AttributeType, GraphData};
+use preference_splitting::trajectories::{check_trajectory, read_trajectories};
+use preference_splitting::{
+    lp::{LpProcess, PreferenceEstimator},
+    statistics::{ExperimentResults, RepresentativeAlphaResult},
+    MyError, MyResult, EDGE_COST_DIMENSION,
+};
 
 use std::convert::TryInto;
-use std::io::Write;
-use std::time::Instant;
+use std::{io::Write, time::Instant};
 
 use chrono::prelude::*;
 use indicatif::{ProgressBar, ProgressStyle};
 use rayon::prelude::*;
-use serde::{Deserialize, Serialize};
 use structopt::StructOpt;
 
 #[derive(StructOpt)]
@@ -24,25 +27,9 @@ struct Opts {
     trajectory_file: String,
     /// File to write output to
     out_file: Option<String>,
-}
-
-#[derive(Serialize, Deserialize)]
-struct Results {
-    graph_file: String,
-    trajectory_file: String,
-    metrics: Vec<String>,
-    results: Vec<AlphaStatistic>,
-}
-
-#[derive(Serialize, Deserialize)]
-struct AlphaStatistic {
-    trip_id: Vec<(Option<u32>, u32)>,
-    vehicle_id: i64,
-    trajectory_length: usize,
-    alpha: Preference,
-    trajectory_cost: Costs,
-    alpha_cost: Costs,
-    run_time: usize,
+    /// Number of threads to use
+    #[structopt(short, long, default_value = "8")]
+    threads: usize,
 }
 
 fn main() -> MyResult<()> {
@@ -50,26 +37,41 @@ fn main() -> MyResult<()> {
         graph_file,
         trajectory_file,
         out_file,
+        threads,
     } = Opts::from_args();
 
     println!("reading graph file");
-    let graph_data = parse_minimal_graph_file(&graph_file)?;
+    let GraphData {
+        graph,
+        edge_lookup,
+        keys,
+    } = parse_minimal_graph_file(&graph_file)?;
 
     println!("reading trajectories");
-    let trajectories = read_trajectories(&trajectory_file)?;
+    let mut trajectories = read_trajectories(&trajectory_file)?;
+
+    let mut statistics: Vec<RepresentativeAlphaResult> = trajectories
+        .iter()
+        .map(RepresentativeAlphaResult::new)
+        .collect();
+
+    trajectories
+        .iter_mut()
+        .zip(statistics.iter_mut())
+        .for_each(|(t, s)| {
+            s.removed_self_loop_indices = t.filter_out_self_loops(&graph, &edge_lookup);
+        });
 
     println!("checking trajectory consistency");
     if trajectories
         .par_iter()
-        .all(|t| check_trajectory(&t, &graph_data.graph, &graph_data.edge_lookup))
+        .all(|t| check_trajectory(&t, &graph, &edge_lookup))
     {
         println!("all {} trajectories seem valid :-)", trajectories.len());
     } else {
         println!("There are invalid trajectories :-(");
         return Err(Box::new(MyError::InvalidTrajectories));
     }
-
-    let mut statistics: Vec<_> = trajectories.iter().map(AlphaStatistic::new).collect();
 
     let progress = ProgressBar::new(trajectories.len().try_into().unwrap());
     progress.set_style(
@@ -80,74 +82,70 @@ fn main() -> MyResult<()> {
             .progress_chars("#>-"),
     );
 
+    let start_time = Utc::now().format("%Y-%m-%d_%H:%M:%S").to_string();
     println!("finiding representatitve alphas");
-    trajectories
-        .par_iter()
-        .zip(statistics.par_iter_mut())
-        .map(|(t, s)| {
-            let p = t.to_path(&graph_data.graph, &graph_data.edge_lookup);
-            s.trajectory_cost = p.total_dimension_costs;
-            (p, s)
-        })
-        .for_each(|(p, s)| {
-            let start = Instant::now();
-            let mut d = Dijkstra::new(&graph_data.graph);
-            let source_id = p.nodes.first().expect("Unexpected empty trajectory");
-            let target_id = p.nodes.last().expect("Unexpected empty trajectory");
 
-            let mut cost_vec = Vec::new();
-            for i in 0..EDGE_COST_DIMENSION {
-                let mut alpha = [0.0; EDGE_COST_DIMENSION];
-                alpha[i] = 1.0;
+    let mut paths = trajectories
+        .into_iter()
+        .map(|t| t.to_path(&graph, &edge_lookup))
+        .zip(statistics.iter_mut())
+        .collect::<Vec<_>>();
 
-                let path = graph_data.graph.find_shortest_path(
-                    &mut d,
-                    p.id[0].0.unwrap_or(0),
-                    &[*source_id, *target_id],
-                    alpha,
-                );
-                cost_vec.push(
-                    path.expect("Did not find path for trajectory")
-                        .total_dimension_costs,
-                );
-            }
-            let alpha = get_linear_combination(&cost_vec, &p.total_dimension_costs);
-            let time = start.elapsed();
+    let items_per_thread = paths.len() / threads;
 
-            let alpha_path = graph_data
-                .graph
-                .find_shortest_path(
-                    &mut d,
-                    p.id[0].0.unwrap_or(0),
-                    &[*source_id, *target_id],
-                    alpha,
-                )
-                .unwrap();
+    #[allow(clippy::explicit_counter_loop)]
+    crossbeam::scope(|scope| {
+        for chunk in paths.chunks_mut(items_per_thread) {
+            (scope.spawn(|_| {
+                let mut d = Dijkstra::new(&graph);
+                let mut lp = LpProcess::new().unwrap();
+                let mut estimator = PreferenceEstimator::new(&graph, &mut lp);
+                let mut counter = 0;
+                for (p, s) in chunk {
+                    let start = Instant::now();
+                    let pref = estimator
+                        .calc_representative_preference(&mut d, p)
+                        .expect("an error occured");
+                    let time = start.elapsed();
 
-            s.run_time = time
-                .as_millis()
-                .try_into()
-                .expect("Could not convert runtime into usize");
+                    s.preference = pref;
+                    s.run_time = time
+                        .as_millis()
+                        .try_into()
+                        .expect("Couldn't convert run time into usize");
 
-            s.alpha_cost = alpha_path.total_dimension_costs;
-            s.alpha = alpha;
-            progress.inc(1);
-        });
+                    s.trajectory_cost = p.total_dimension_costs;
 
+                    let alpha_path = graph
+                        .find_shortest_path(
+                            &mut d,
+                            0,
+                            &[*p.nodes.first().unwrap(), *p.nodes.last().unwrap()],
+                            pref,
+                        )
+                        .expect("there must be a path");
+                    s.alpha_cost = alpha_path.total_dimension_costs;
+                    s.overlap = overlap(p, &alpha_path);
+
+                    if counter % 10 == 0 {
+                        progress.inc(10);
+                    }
+                    counter += 1;
+                }
+            }));
+        }
+    })
+    .unwrap();
     progress.finish();
 
-    let outfile_name = out_file.unwrap_or_else(|| {
-        format!(
-            "splitting_results_{}.json",
-            Utc::now().format("%Y-%m-%d_%H:%M:%S").to_string()
-        )
-    });
+    let outfile_name =
+        out_file.unwrap_or_else(|| format!("representative_alpha_results_{}.json", start_time));
 
     println!("writing results to \"{}\"", outfile_name);
 
     let mut metrics = vec!["".to_owned(); EDGE_COST_DIMENSION];
 
-    for key in graph_data.keys.values() {
+    for key in keys.values() {
         if let AttributeType::Double(idx) = key.attribute_type {
             metrics[idx] = key.name.clone();
         }
@@ -156,27 +154,14 @@ fn main() -> MyResult<()> {
     let outfile = std::fs::File::create(outfile_name)?;
     let mut outfile = std::io::BufWriter::new(outfile);
 
-    let results = Results {
+    let results = ExperimentResults {
         graph_file,
         trajectory_file,
         metrics,
+        start_time,
         results: statistics,
     };
 
     outfile.write_all(serde_json::to_string_pretty(&results)?.as_bytes())?;
     Ok(())
-}
-
-impl AlphaStatistic {
-    fn new(t: &Trajectory) -> Self {
-        AlphaStatistic {
-            trip_id: t.trip_id.clone(),
-            vehicle_id: t.vehicle_id,
-            trajectory_length: t.path.len() + 1,
-            trajectory_cost: [0.0; EDGE_COST_DIMENSION],
-            alpha: [0.0; EDGE_COST_DIMENSION],
-            alpha_cost: [0.0; EDGE_COST_DIMENSION],
-            run_time: 0,
-        }
-    }
 }

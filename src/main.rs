@@ -10,7 +10,7 @@ use preference_splitting::graphml::{read_graphml, AttributeType, GraphData};
 use preference_splitting::helpers::MyVec;
 use preference_splitting::lp::LpProcess;
 use preference_splitting::statistics::{
-    NonOptSubPathsResult, SplittingResults, SplittingStatistics,
+    ExperimentResults, NonOptSubPathsResult, SplittingStatistics,
 };
 use preference_splitting::trajectories::{check_trajectory, read_trajectories};
 use preference_splitting::MyResult;
@@ -135,6 +135,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let items_per_thread = paths.len() / threads;
 
+    #[allow(clippy::explicit_counter_loop)]
     crossbeam::scope(|scope| {
         for chunk in paths.chunks_mut(items_per_thread) {
             (scope.spawn(|_| {
@@ -184,7 +185,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut outfile = std::io::BufWriter::new(outfile);
 
     let statistics = paths.into_iter().map(|(_, s)| s).collect();
-    let results = SplittingResults {
+    let results = ExperimentResults {
         graph_file,
         trajectory_file,
         metrics,

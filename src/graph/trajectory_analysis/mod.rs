@@ -50,7 +50,7 @@ impl<'a, 'b> TrajectoryAnalysis<'a, 'b> {
                 if start == m {
                     return Ok(());
                 }
-                let estimator = PreferenceEstimator::new(self.graph, self.lp);
+                let mut estimator = PreferenceEstimator::new(self.graph, self.lp);
                 let pref = estimator.calc_preference(self.dijkstra, &path, start, m)?;
                 if pref.is_some() {
                     low = m + 1;
@@ -89,7 +89,7 @@ impl<'a, 'b> TrajectoryAnalysis<'a, 'b> {
             for c in cut_indices {
                 let mut dist = 1;
                 loop {
-                    let esti = PreferenceEstimator::new(&self.graph, self.lp);
+                    let mut esti = PreferenceEstimator::new(&self.graph, self.lp);
                     if esti
                         .calc_preference(self.dijkstra, &path, c - dist, c + 1)?
                         .is_none()
