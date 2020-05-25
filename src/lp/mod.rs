@@ -73,9 +73,71 @@ impl<'a, 'b> PreferenceEstimator<'a, 'b> {
             }
         }
     }
+
+    pub fn calc_representative_preference(
+        self,
+        dijkstra: &mut Dijkstra,
+        path: &Path,
+    ) -> MyResult<Preference> {
+        let costs = path.total_dimension_costs;
+
+        let accuracy = 0.0001;
+
+        let mut best_dif = f64::MAX;
+        let mut best_pref = EQUAL_WEIGHTS;
+
+        let mut prev_alphas: Vec<Preference> = Vec::new();
+        let mut alpha = EQUAL_WEIGHTS;
+        prev_alphas.push(alpha);
+        loop {
+            let result = self
+                .graph
+                .find_shortest_path(
+                    dijkstra,
+                    0,
+                    &[*path.nodes.first().unwrap(), *path.nodes.last().unwrap()],
+                    alpha,
+                )
+                .unwrap();
+            let dif = costs_by_alpha(&costs, &alpha)
+                - costs_by_alpha(&result.total_dimension_costs, &alpha);
+
+            if dif - accuracy <= 0.0 {
+                return Ok(alpha);
+            }
+
+            if dif < best_dif {
+                best_dif = dif;
+                best_pref = alpha;
+            }
+
+            let mut cost_dif: Costs = [0.0; EDGE_COST_DIMENSION];
+
+            cost_dif
+                .iter_mut()
+                .zip(costs.iter().zip(result.total_dimension_costs.iter()))
+                .for_each(|(c, (p, r))| *c = r - p);
+
+            self.lp.add_constraint(&cost_dif)?;
+            match self.lp.solve()? {
+                Some((pref, delta)) => {
+                    if best_dif <= -delta + accuracy {
+                        return Ok(best_pref);
+                    }
+                    if prev_alphas.iter().any(|a| a == &pref) {
+                        todo!("Handle repeating alphas??");
+                        // return Ok(None);
+                    }
+                    alpha = pref;
+                    prev_alphas.push(alpha);
+                }
+                None => panic!("Infeasible LP should never happen"), //return Ok(None),
+            }
+        }
+    }
 }
 
-use crate::helpers::Costs;
+use crate::helpers::{Costs, EQUAL_WEIGHTS};
 use crate::MyResult;
 use std::io::{BufReader, BufWriter, Read, Write};
 use std::process::{Child, Command, Stdio};
@@ -174,4 +236,80 @@ impl LpProcess {
             x => panic!(format!("Unknown control byte {}", x)),
         }
     }
+}
+
+#[test]
+fn test_calc_representative_preference() {
+    use crate::graph::{Edge, Node};
+
+    let nodes = vec![Node::new(0, 0), Node::new(1, 0), Node::new(2, 0)];
+    let edges = vec![
+        Edge::new(0, 0, 1, [0.0; EDGE_COST_DIMENSION], None),
+        Edge::new(1, 1, 2, [10.0; EDGE_COST_DIMENSION], None),
+        Edge::new(2, 0, 2, [0.0, 0.0, 0.0, 9.0], None),
+        // Edge::new(3, 0, 2, [0.0; EDGE_COST_DIMENSION], None),
+        // Edge::new(4, 0, 2, [0.0; EDGE_COST_DIMENSION], None),
+    ];
+
+    let graph = Graph::new(nodes, edges);
+    let mut dijkstra = Dijkstra::new(&graph);
+
+    let mut lp = LpProcess::new().unwrap();
+
+    let estimator = PreferenceEstimator::new(&graph, &mut lp);
+
+    let path = graph
+        .find_shortest_path(&mut dijkstra, 0, &[0, 1, 2], EQUAL_WEIGHTS)
+        .unwrap();
+
+    let opt = estimator
+        .calc_preference(&mut dijkstra, &path, 0, 2)
+        .unwrap();
+
+    assert_eq!(None, opt);
+
+    let estimator = PreferenceEstimator::new(&graph, &mut lp);
+    let representative = estimator
+        .calc_representative_preference(&mut dijkstra, &path)
+        .unwrap();
+
+    assert_eq!([0.0, 0.0, 0.0, 1.0], representative);
+}
+
+#[test]
+fn test_calc_mixed_representative_preference() {
+    use crate::graph::{Edge, Node};
+
+    let nodes = vec![Node::new(0, 0), Node::new(1, 0), Node::new(2, 0)];
+    let edges = vec![
+        Edge::new(0, 0, 1, [0.0; EDGE_COST_DIMENSION], None),
+        Edge::new(1, 1, 2, [10.0; EDGE_COST_DIMENSION], None),
+        Edge::new(2, 0, 2, [0.0, 0.0, 12.0, 7.0], None),
+        Edge::new(3, 0, 2, [0.0, 0.0, 8.0, 8.0], None),
+        Edge::new(4, 0, 2, [0.0, 0.0, 7.0, 12.0], None),
+    ];
+
+    let graph = Graph::new(nodes, edges);
+    let mut dijkstra = Dijkstra::new(&graph);
+
+    let mut lp = LpProcess::new().unwrap();
+
+    let estimator = PreferenceEstimator::new(&graph, &mut lp);
+
+    let path = graph
+        .find_shortest_path(&mut dijkstra, 0, &[0, 1, 2], EQUAL_WEIGHTS)
+        .unwrap();
+
+    let opt = estimator
+        .calc_preference(&mut dijkstra, &path, 0, 2)
+        .unwrap();
+
+    assert_eq!(None, opt);
+
+    let estimator = PreferenceEstimator::new(&graph, &mut lp);
+    let representative = estimator
+        .calc_representative_preference(&mut dijkstra, &path)
+        .unwrap();
+
+    assert_eq!([0.0, 0.0, 0.2, 0.8], representative);
 }

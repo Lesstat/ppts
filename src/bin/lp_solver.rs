@@ -93,7 +93,7 @@ impl Lp {
                 .chain(std::iter::once(-1.0))
                 .collect();
 
-            // 0 <= cost(alpha, p) - cost(alpha, p*) - delta
+            // 0 <= cost(alpha, p_alpha) - cost(alpha, p_trajectory) - delta
 
             glp_set_row_bnds(self.lp, row, GLP_LO, 0.0, 0.0);
             glp_set_mat_row(self.lp, row, DIM + 1, indices.as_ptr(), values.as_ptr());
