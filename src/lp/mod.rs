@@ -59,11 +59,14 @@ impl<'a, 'b> PreferenceEstimator<'a, 'b> {
 
             self.lp.add_constraint(&cost_dif)?;
             match self.lp.solve()? {
-                Some(result) => {
-                    if prev_alphas.iter().any(|a| a == &result) {
+                Some((pref, delta)) => {
+                    if delta < 0.0 {
                         return Ok(None);
                     }
-                    alpha = result;
+                    if prev_alphas.iter().any(|a| a == &pref) {
+                        return Ok(None);
+                    }
+                    alpha = pref;
                     prev_alphas.push(alpha);
                 }
                 None => return Ok(None),
@@ -135,7 +138,7 @@ impl LpProcess {
         Ok(())
     }
 
-    pub fn solve(&mut self) -> MyResult<Option<Preference>> {
+    pub fn solve(&mut self) -> MyResult<Option<(Preference, f64)>> {
         let child_stdin = self.lp.stdin.as_mut().unwrap();
 
         let mut b = BufWriter::new(child_stdin);
@@ -163,9 +166,11 @@ impl LpProcess {
                 pref.iter_mut()
                     .zip(result.iter().map(|r| r.max(0.0)))
                     .for_each(|(p, r)| *p = r);
-                Ok(Some(pref))
+                Ok(Some((pref, *result.last().unwrap())))
             }
-            1 => Ok(None),
+            1 => {
+                panic!("Invalid LP should never happen!");
+            }
             x => panic!(format!("Unknown control byte {}", x)),
         }
     }

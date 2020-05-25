@@ -13,6 +13,7 @@ const GLP_MAX: c_int = 2; // maximisation
 const GLP_LO: c_int = 2; // variable with lower bound
 const GLP_DB: c_int = 4; // double-bounded variable
 const GLP_CV: c_int = 1; // continuous variable
+const GLP_FR: c_int = 1; // free (unbounded) variable
 const GLP_FX: c_int = 5; // fixed variable
 const GLP_ON: c_int = 1; // enable something
 const GLP_OFF: c_int = 0; // disable something
@@ -57,7 +58,7 @@ impl Lp {
 
         let name = CString::new("delta").expect("Delta col name could not be created");
 
-        glp_set_col_bnds(lp, delta_col, GLP_LO, 0.0, 0.0);
+        glp_set_col_bnds(lp, delta_col, GLP_FR, 0.0, 0.0);
         glp_set_col_kind(lp, delta_col, GLP_CV);
         glp_set_obj_coef(lp, delta_col, 1.0);
         glp_set_col_name(lp, delta_col, name.as_ptr());
@@ -92,6 +93,8 @@ impl Lp {
                 .chain(std::iter::once(-1.0))
                 .collect();
 
+            // 0 <= cost(alpha, p) - cost(alpha, p*) - delta
+
             glp_set_row_bnds(self.lp, row, GLP_LO, 0.0, 0.0);
             glp_set_mat_row(self.lp, row, DIM + 1, indices.as_ptr(), values.as_ptr());
         }
@@ -104,9 +107,13 @@ impl Lp {
             params.presolve = GLP_ON;
             params.msg_lev = GLP_MSG_OFF;
             params.meth = GLP_DUALP;
-            let filename = CString::new("/tmp/lps/my.lp").unwrap();
 
-            glp_write_lp(self.lp, std::ptr::null(), filename.as_ptr());
+            // let filename = CString::new(format!("/tmp/lps/my-{}.lp", self.counter)).unwrap();
+            // let file_stat = glp_write_lp(self.lp, std::ptr::null(), filename.as_ptr());
+            // if file_stat != 0 {
+            //     panic!("could not write file");
+            // }
+            // self.counter += 1;
 
             let status = glp_simplex(self.lp, &params);
             if status == 0 {
