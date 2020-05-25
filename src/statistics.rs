@@ -30,6 +30,7 @@ pub struct SplittingResults {
     pub graph_file: String,
     pub trajectory_file: String,
     pub metrics: Vec<String>,
+    pub start_time: String,
     pub results: Vec<SplittingStatistics>,
 }
 

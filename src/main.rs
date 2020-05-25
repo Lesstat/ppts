@@ -124,6 +124,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             .progress_chars("#>-"),
     );
 
+    let start_time = Utc::now().format("%Y-%m-%d_%H:%M:%S").to_string();
     progress.set_draw_delta((trajectories.len().min(1000)).try_into().unwrap());
 
     let mut paths: Vec<_> = trajectories
@@ -167,10 +168,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     progress.finish();
 
-    let outfile_name = format!(
-        "splitting_results_{}.json",
-        Utc::now().format("%Y-%m-%d_%H:%M:%S").to_string()
-    );
+    let outfile_name = format!("splitting_results_{}.json", start_time);
 
     println!("writing results to \"{}\"", outfile_name);
 
@@ -190,6 +188,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         graph_file,
         trajectory_file,
         metrics,
+        start_time,
         results: statistics,
     };
 
