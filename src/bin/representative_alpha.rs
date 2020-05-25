@@ -6,6 +6,7 @@ use preference_splitting::graph::{
 use preference_splitting::graphml::{AttributeType, GraphData};
 use preference_splitting::trajectories::{check_trajectory, read_trajectories};
 use preference_splitting::{
+    helpers::costs_by_alpha,
     lp::{LpProcess, PreferenceEstimator},
     statistics::{ExperimentResults, RepresentativeAlphaResult},
     MyError, MyResult, EDGE_COST_DIMENSION,
@@ -125,6 +126,8 @@ fn main() -> MyResult<()> {
                         )
                         .expect("there must be a path");
                     s.alpha_cost = alpha_path.total_dimension_costs;
+                    s.aggregated_cost_diff = costs_by_alpha(&p.total_dimension_costs, &pref)
+                        - costs_by_alpha(&alpha_path.total_dimension_costs, &pref);
                     s.overlap = overlap(p, &alpha_path);
 
                     if counter % 10 == 0 {

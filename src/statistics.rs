@@ -28,6 +28,7 @@ pub struct RepresentativeAlphaResult {
     pub preference: Preference,
     pub trajectory_cost: Costs,
     pub alpha_cost: Costs,
+    pub aggregated_cost_diff: f64,
     pub overlap: f64,
     pub run_time: usize,
 }
