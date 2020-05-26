@@ -2,7 +2,7 @@ use crate::EDGE_COST_DIMENSION;
 
 use rand::{
     distributions::{Distribution, Uniform},
-    prelude::ThreadRng,
+    prelude::{SliceRandom, ThreadRng},
 };
 use serde::{Deserialize, Serialize};
 use std::ops::{Deref, DerefMut, Index, IndexMut, Range, RangeInclusive};
@@ -122,6 +122,7 @@ pub fn randomized_preference(rng: &mut ThreadRng) -> Preference {
     }
     *last = rest;
 
+    result.shuffle(rng);
     result
 }
 
