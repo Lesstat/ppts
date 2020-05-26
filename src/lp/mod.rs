@@ -231,9 +231,7 @@ impl LpProcess {
                     .for_each(|(p, r)| *p = r);
                 Ok(Some((pref, *result.last().unwrap())))
             }
-            1 => {
-                panic!("Invalid LP should never happen!");
-            }
+            1 => Ok(None),
             x => panic!(format!("Unknown control byte received on main side: {}", x)),
         }
     }
