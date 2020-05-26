@@ -94,7 +94,6 @@ fn main() -> MyResult<()> {
                 for (p, s) in chunk {
                     if s.overlap >= 1.0 {
                         s.better_overlap_by_rng = Some(0);
-                        println!("skip");
                         continue;
                     }
                     let ids = [*p.nodes.first().unwrap(), *p.nodes.last().unwrap()];
