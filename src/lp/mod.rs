@@ -235,7 +235,7 @@ impl LpProcess {
             1 => {
                 panic!("Invalid LP should never happen!");
             }
-            x => panic!(format!("Unknown control byte {}", x)),
+            x => panic!(format!("Unknown control byte received on main side: {}", x)),
         }
     }
 }

@@ -203,7 +203,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                 }
                 writer.flush()?;
             }
-            x => panic!(format!("Unknown control byte {}", x)),
+            x => panic!(format!("Unknown control byte received on lp side: {}", x)),
         }
     }
 }
