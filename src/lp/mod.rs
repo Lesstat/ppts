@@ -132,7 +132,13 @@ impl<'a, 'b> PreferenceEstimator<'a, 'b> {
                     alpha = pref;
                     prev_alphas.push(alpha);
                 }
-                None => panic!("Infeasible LP should never happen"), //return Ok(None),
+                None => {
+                    if best_dif < f64::MAX {
+                        return Ok(best_pref);
+                    } else {
+                        panic!("Could not even find a single preference")
+                    }
+                }
             }
         }
     }
