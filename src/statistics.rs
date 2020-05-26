@@ -31,6 +31,8 @@ pub struct RepresentativeAlphaResult {
     pub aggregated_cost_diff: f64,
     pub overlap: f64,
     pub run_time: usize,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub better_overlap_by_rng: Option<usize>,
 }
 
 impl RepresentativeAlphaResult {
@@ -75,6 +77,14 @@ impl SplittingStatistics {
 pub fn read_splitting_results<P: AsRef<Path>>(
     path: P,
 ) -> Result<ExperimentResults<SplittingStatistics>, Box<dyn std::error::Error>> {
+    let file = std::fs::File::open(path)?;
+    let file = std::io::BufReader::new(file);
+    Ok(from_reader(file)?)
+}
+
+pub fn read_representative_results<P: AsRef<Path>>(
+    path: P,
+) -> Result<ExperimentResults<RepresentativeAlphaResult>, Box<dyn std::error::Error>> {
     let file = std::fs::File::open(path)?;
     let file = std::io::BufReader::new(file);
     Ok(from_reader(file)?)
