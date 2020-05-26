@@ -127,8 +127,7 @@ impl<'a, 'b> PreferenceEstimator<'a, 'b> {
                         return Ok(best_pref);
                     }
                     if prev_alphas.iter().any(|a| a == &pref) {
-                        todo!("Handle repeating alphas??");
-                        // return Ok(None);
+                        return Ok(best_pref);
                     }
                     alpha = pref;
                     prev_alphas.push(alpha);
