@@ -9,9 +9,8 @@ use crate::helpers::{randomized_preference, MyVec, EQUAL_WEIGHTS};
 use serde::{Deserialize, Serialize};
 use serde_json::from_reader;
 
-use geojson::{Feature, Geometry, Value};
 use rand::prelude::ThreadRng;
-use std::{collections::HashMap, fs::File, io::BufWriter, string::ToString};
+use std::string::ToString;
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Trajectory {
@@ -114,8 +113,6 @@ pub fn create_randomwalk_trajectory(
     graph: &Graph,
     d: &mut Dijkstra,
     rng: &mut ThreadRng,
-    idx_to_id: &[String],
-    geojson_map: &HashMap<i64, Geometry>,
 ) -> Option<Trajectory> {
     let mut cur_node = source;
     let mut path = MyVec::new();
@@ -136,12 +133,6 @@ pub fn create_randomwalk_trajectory(
 
         cur_node = graph.edges[edges[0]].target_id;
         path.push(edges[0]);
-        write_geojson(
-            idx_to_id,
-            geojson_map,
-            &edges,
-            &format!("/tmp/walks/{}_{}.json", cur_node, target),
-        );
     }
 
     let path = path.iter().map(|&i| i as i64).collect::<Vec<_>>().into();
@@ -151,44 +142,4 @@ pub fn create_randomwalk_trajectory(
         vehicle_id: -1,
         path,
     })
-}
-
-fn write_geojson(
-    idx_to_id: &[String],
-    geojson_map: &HashMap<i64, Geometry>,
-    edges: &[u32],
-    id: &str,
-) {
-    let line_strings: Vec<Geometry> = edges
-        .iter()
-        .map(|&e| {
-            let id = &idx_to_id
-                .get(e as usize)
-                .unwrap_or_else(|| panic!("no key {} in idx_to_id", e));
-
-            let id = id
-                .parse()
-                .unwrap_or_else(|_| panic!("Could not parse extrenal id: {}", id));
-
-            geojson_map
-                .get(&id)
-                .unwrap_or_else(|| panic!("no key {} in linestring map", id))
-                .clone()
-        })
-        .collect();
-    let f = Feature {
-        bbox: None,
-        geometry: Some(Geometry {
-            bbox: None,
-            value: Value::GeometryCollection(line_strings),
-            foreign_members: None,
-        }),
-        id: None,
-        properties: None,
-        foreign_members: None,
-    };
-
-    let out = BufWriter::new(File::create(id).unwrap());
-
-    serde_json::to_writer_pretty(out, &f).unwrap();
 }

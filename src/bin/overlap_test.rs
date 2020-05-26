@@ -4,11 +4,11 @@ use preference_splitting::graph::{
 };
 use rand::thread_rng;
 
-use preference_splitting::graphml::{AttributeType, GraphData};
+use preference_splitting::graphml::GraphData;
+
 use preference_splitting::trajectories::{check_trajectory, read_trajectories};
 use preference_splitting::{
     helpers::randomized_preference, statistics::read_representative_results, MyError, MyResult,
-    EDGE_COST_DIMENSION,
 };
 
 use std::convert::TryInto;
@@ -41,9 +41,7 @@ fn main() -> MyResult<()> {
 
     println!("reading graph file: {}", results.graph_file);
     let GraphData {
-        graph,
-        edge_lookup,
-        keys,
+        graph, edge_lookup, ..
     } = parse_minimal_graph_file(&results.graph_file)?;
 
     println!("reading trajectories {}", results.trajectory_file);
@@ -125,15 +123,7 @@ fn main() -> MyResult<()> {
     let outfile_name =
         out_file.unwrap_or_else(|| format!("overlap_test_results_{}.json", start_time));
 
-    println!("writing results to \"{}\"", outfile_name);
-
-    let mut metrics = vec!["".to_owned(); EDGE_COST_DIMENSION];
-
-    for key in keys.values() {
-        if let AttributeType::Double(idx) = key.attribute_type {
-            metrics[idx] = key.name.clone();
-        }
-    }
+    println!("writing results to {}", outfile_name);
 
     let outfile = std::fs::File::create(outfile_name)?;
     let mut outfile = std::io::BufWriter::new(outfile);
