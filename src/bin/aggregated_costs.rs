@@ -1,6 +1,9 @@
 use preference_splitting::graph::dijkstra::Dijkstra;
 use preference_splitting::graph::{
-    parse_minimal_graph_file, trajectory_analysis::evaluations::overlap,
+    parse_minimal_graph_file
+};
+use preference_splitting::{
+    helpers::costs_by_alpha
 };
 use rand::thread_rng;
 
@@ -72,7 +75,7 @@ fn main() -> MyResult<()> {
     );
 
     let start_time = Utc::now().format("%Y-%m-%d_%H:%M:%S").to_string();
-    println!("checking for better overlap with random alphas");
+    println!("checking for better aggregated costs with random alphas");
 
     let mut paths = trajectories
         .into_iter()
@@ -91,8 +94,8 @@ fn main() -> MyResult<()> {
                 let mut counter = 0;
                 let accuracy = 0.00001;
                 for (p, s) in chunk {
-                    if s.overlap >= 1.0 {
-                        s.better_overlap_by_rng = Some(0);
+                    if s.aggregated_cost_diff == 0.0 {
+                        s.better_aggregated_cost_diff_by_rng = Some(0);
                         continue;
                     }
                     let ids = [*p.nodes.first().unwrap(), *p.nodes.last().unwrap()];
@@ -103,12 +106,13 @@ fn main() -> MyResult<()> {
                         let alpha_path = graph
                             .find_shortest_path(&mut d, 0, &ids, rand_pref)
                             .expect("there must be a path");
-
-                        if overlap(p, &alpha_path) > s.overlap + accuracy {
+                        let aggregated_random_costs = costs_by_alpha(&alpha_path.total_dimension_costs, &rand_pref);
+                        let aggregated_costs = costs_by_alpha(&s.trajectory_cost, &rand_pref);
+                        if aggregated_costs - aggregated_random_costs + accuracy < s.aggregated_cost_diff {
                             better += 1;
                         }
                     }
-                    s.better_overlap_by_rng = Some(better);
+                    s.better_aggregated_cost_diff_by_rng = Some(better);
 
                     if counter % 10 == 0 {
                         progress.inc(10);

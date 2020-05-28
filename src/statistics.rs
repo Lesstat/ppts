@@ -34,6 +34,8 @@ pub struct RepresentativeAlphaResult {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub better_overlap_by_rng: Option<usize>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub better_aggregated_cost_diff_by_rng: Option<usize>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub wrong_turns: Option<Vec<usize>>,
 }
 
