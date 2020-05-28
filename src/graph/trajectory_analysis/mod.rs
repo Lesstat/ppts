@@ -109,6 +109,131 @@ impl<'a, 'b> TrajectoryAnalysis<'a, 'b> {
             Ok(Vec::new())
         }
     }
+
+   /* pub fn find_all_non_optimal_segments(&mut self, path: &mut Path) -> MyResult<Vec<SubPath>> {
+        let mut subpaths = Vec::new();
+        let mut start: i32 = 0;
+        let lenPath: u32 = path.nodes.len() as u32;
+        let mut stop: i32 = lenPath as i32;
+        let mut esti = PreferenceEstimator::new(&self.graph, self.lp);
+        while start != stop {
+            let mut step = (stop - start + 1) / 2;
+            while step > 0 {
+                if esti
+                    .calc_preference(self.dijkstra, &path, start as u32, stop as u32)?
+                    .is_none()
+                {
+                    start += step;
+                    if start >= stop {
+                        start = stop - 1;
+                    }
+                } else {
+                    if start == 0 {
+                        return Ok(subpaths);
+                    }
+                    start -= step;
+                    if start < 0 {
+                        start = 0;
+                    }
+                }
+                if step == 1 {
+                    step = 0;
+                } else {
+                    step = (step + 1) / 2;
+                }
+            }
+            if esti
+                .calc_preference(self.dijkstra, &path, start as u32, stop as u32)?
+                .is_some()
+            {
+                if start == 0 {
+                    return Ok(subpaths);
+                }
+                start -= 1;
+            }
+            let subpath = SubPath {
+                start_index: start as u32,
+                end_index: stop as u32,
+            };
+            subpaths.push(subpath);
+        }
+
+        // Ignore last cut as it is the last node of the path
+        if let Some((_, cut_indices)) = path.algo_split.as_ref().and_then(|s| s.cuts.split_last()) {
+            let mut res = Vec::new();
+            for c in cut_indices {
+                let mut dist = 1;
+                loop {
+                    let mut esti = PreferenceEstimator::new(&self.graph, self.lp);
+                    if esti
+                        .calc_preference(self.dijkstra, &path, c - dist, c + 1)?
+                        .is_none()
+                    {
+                        let subpath = SubPath {
+                            start_index: c - dist,
+                            end_index: c + 1,
+                        };
+                        res.push(subpath);
+                        break;
+                    }
+                    dist += 1;
+                }
+            }
+            Ok(res)
+        } else {
+            Ok(Vec::new())
+        }
+    }*/
+
+    pub fn get_single_preference_decomposition(
+        &mut self,
+        contraint_paths: &Vec<Path>,
+        path: &Path,
+    ) -> MyResult<SinglePreferenceDecomposition> {
+        let path_length = path.nodes.len() as u32;
+        let mut cuts = MyVec::new();
+        let mut start = 0u32;
+        let mut best_pref = None;
+        let mut paths = contraint_paths.clone();
+        while start < path_length - 1 {
+            let mut low = start;
+            let mut high = path_length;
+            let mut best_cut = 0;
+            loop {
+                let m = (low + high) / 2;
+                if start == m {
+                    let res = SinglePreferenceDecomposition{ cuts, preference : [-1.0; EDGE_COST_DIMENSION]};
+                    return Ok(res);
+                }
+                let mut estimator = PreferenceEstimator::new(self.graph, self.lp);
+                let subpath = path.get_subpath(self.graph, start, m);
+                paths.push(subpath.clone());
+                let pref = estimator.calc_preference_for_multiple_paths(self.dijkstra, &paths)?;
+                paths.pop();
+                if pref.is_some() {
+                    low = m + 1;
+                    best_pref = pref;
+                    best_cut = m;
+                } else {
+                    high = m;
+                }
+                if low >= high {
+                    cuts.push(best_cut);
+                    paths.push(subpath);
+                    break;
+                }
+            }
+            start = best_cut;
+        }
+        let res = SinglePreferenceDecomposition{ cuts, preference : best_pref.unwrap()};
+
+        Ok(res)
+    }
+}
+
+pub struct SinglePreferenceDecomposition {
+    pub preference: Preference,
+    pub cuts: MyVec<u32>,
 }
 
 /// Takes the optimal path cost vectors for each metric (e.g. alpha =
