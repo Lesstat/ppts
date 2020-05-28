@@ -142,6 +142,86 @@ impl<'a, 'b> PreferenceEstimator<'a, 'b> {
             }
         }
     }
+
+    pub fn calc_representative_preference_for_multiple_paths(
+        &mut self,
+        dijkstra: &mut Dijkstra,
+        paths: &Vec<Path>,
+    ) -> MyResult<Preference> {
+        self.lp.reset().expect("LP Process could not be reset");
+        let mut sum_costs = [0.0; EDGE_COST_DIMENSION];
+        for path in paths{
+            let costs = path.total_dimension_costs;
+            for i in 0..EDGE_COST_DIMENSION{
+                sum_costs[i] += costs[i];
+            }
+        }
+        let accuracy = 0.0001;
+
+        let mut best_dif = f64::MAX;
+        let mut best_pref = EQUAL_WEIGHTS;
+
+        let mut prev_alphas: Vec<Preference> = Vec::new();
+        let mut alpha = EQUAL_WEIGHTS;
+        prev_alphas.push(alpha);
+        loop {
+            let mut sum_optimal_costs = [0.0; EDGE_COST_DIMENSION];
+            for path in paths{
+                let result = self
+                .graph
+                .find_shortest_path(
+                    dijkstra,
+                    0,
+                    &[*path.nodes.first().unwrap(), *path.nodes.last().unwrap()],
+                    alpha,
+                )
+                .unwrap();
+                for i in 0..EDGE_COST_DIMENSION{
+                    sum_optimal_costs[i] += result.total_dimension_costs[i];
+                }
+            }
+            
+            let dif = costs_by_alpha(&sum_costs, &alpha)
+                - costs_by_alpha(&sum_optimal_costs, &alpha);
+
+            if dif - accuracy <= 0.0 {
+                return Ok(alpha);
+            }
+
+            if dif < best_dif {
+                best_dif = dif;
+                best_pref = alpha;
+            }
+
+            let mut cost_dif: Costs = [0.0; EDGE_COST_DIMENSION];
+
+            cost_dif
+                .iter_mut()
+                .zip(sum_costs.iter().zip(sum_optimal_costs.iter()))
+                .for_each(|(c, (p, r))| *c = r - p);
+
+            self.lp.add_constraint(&cost_dif)?;
+            match self.lp.solve()? {
+                Some((pref, delta)) => {
+                    if best_dif <= -delta + accuracy {
+                        return Ok(best_pref);
+                    }
+                    if prev_alphas.iter().any(|a| a == &pref) {
+                        return Ok(best_pref);
+                    }
+                    alpha = pref;
+                    prev_alphas.push(alpha);
+                }
+                None => {
+                    if best_dif < f64::MAX {
+                        return Ok(best_pref);
+                    } else {
+                        panic!("Could not even find a single preference")
+                    }
+                }
+            }
+        }
+    }
 }
 
 use crate::helpers::{Costs, EQUAL_WEIGHTS};
