@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::from_reader;
 
 use rand::prelude::ThreadRng;
-use std::string::ToString;
+use std::{collections::HashMap, string::ToString};
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Trajectory {
@@ -104,6 +104,26 @@ impl Trajectory {
         self.path = MyVec(normal.into_iter().map(|(_, e)| e).copied().collect());
 
         indices
+    }
+
+    pub fn from_path(path: &Path, edge_lookup: &EdgeLookup) -> Trajectory {
+        let reverse_lookup: HashMap<_, _> = edge_lookup.iter().map(|(k, v)| (v, k)).collect();
+
+        let edges = path
+            .edges
+            .iter()
+            .map(|id| {
+                reverse_lookup[&(*id as u32)]
+                    .parse()
+                    .unwrap_or_else(|_| panic!("could not map {} back to exteranl id", id))
+            })
+            .collect();
+
+        Trajectory {
+            trip_id: path.id.clone(),
+            vehicle_id: -1,
+            path: MyVec(edges),
+        }
     }
 }
 
