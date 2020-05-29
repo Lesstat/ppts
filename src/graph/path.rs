@@ -1,7 +1,6 @@
 use crate::graph::Graph;
 use crate::helpers::{add_edge_costs, Costs, MyVec, Preference};
 use crate::EDGE_COST_DIMENSION;
-use serde::Serialize;
 
 #[derive(Clone, Debug)]
 pub struct PathSplit {
@@ -38,9 +37,13 @@ impl Path {
     }
     pub fn get_subpath(&self, graph: &Graph, start : u32, end : u32) -> Path {
         let nodes = MyVec(self.nodes[start..end].iter().copied().collect());
-        let edges = MyVec(self.edges[start..(end-1)].iter().copied().collect());
+        let mut stop = end;
+        if stop > 0{
+            stop -= 1;
+        }
+        let edges = MyVec(self.edges[start..stop].iter().copied().collect());
         let id = Vec::new();
-        let total_dimension_costs = self.get_subpath_costs(graph, start, end-1);
+        let total_dimension_costs = self.get_subpath_costs(graph, start, stop);
         let algo_split = None;
         let user_split = self.user_split.clone();
         Path {id, nodes, edges, user_split, algo_split, total_dimension_costs}

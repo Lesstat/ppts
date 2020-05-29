@@ -27,6 +27,7 @@ impl<'a, 'b> PreferenceEstimator<'a, 'b> {
 
         let mut prev_alphas: Vec<Preference> = Vec::new();
         let mut alpha = [1.0 / EDGE_COST_DIMENSION as f64; EDGE_COST_DIMENSION];
+        let accuracy = 0.0001;
         prev_alphas.push(alpha);
         loop {
             let result = self
@@ -41,7 +42,7 @@ impl<'a, 'b> PreferenceEstimator<'a, 'b> {
             if &path.nodes[source_idx..=target_idx] == result.nodes.as_slice() {
                 // Catch case paths are equal, but have slightly different costs (precision issue)
                 return Ok(Some(alpha));
-            } else if result.user_split.get_total_cost() >= costs_by_alpha(&costs, &alpha) {
+            } else if result.user_split.get_total_cost() + accuracy > costs_by_alpha(&costs, &alpha) {
                 // println!(
                 //     "Shouldn't happen: result: {:?}; user: {:?}",
                 //     result.user_split.get_total_cost(),
@@ -61,7 +62,7 @@ impl<'a, 'b> PreferenceEstimator<'a, 'b> {
             self.lp.add_constraint(&cost_dif)?;
             match self.lp.solve()? {
                 Some((pref, delta)) => {
-                    if delta < 0.0 {
+                    if delta + accuracy < 0.0 {
                         return Ok(None);
                     }
                     if prev_alphas.iter().any(|a| a == &pref) {
@@ -81,62 +82,66 @@ impl<'a, 'b> PreferenceEstimator<'a, 'b> {
         paths: &Vec<Path>,
     ) -> MyResult<Option<Preference>> {
         self.lp.reset().expect("LP Process could not be reset");
-        let mut sum_costs = [0.0; EDGE_COST_DIMENSION];
-        for path in paths{
-            let costs = path.total_dimension_costs;
-            for i in 0..EDGE_COST_DIMENSION{
-                sum_costs[i] += costs[i];
-            }
-        }
+
         let accuracy = 0.0001;
 
         let mut prev_alphas: Vec<Preference> = Vec::new();
         let mut alpha = EQUAL_WEIGHTS;
         prev_alphas.push(alpha);
         loop {
-            let mut sum_optimal_costs = [0.0; EDGE_COST_DIMENSION];
-            for path in paths{
+            let mut sum_dif = 0.0;
+            for path in paths {
                 let result = self
-                .graph
-                .find_shortest_path(
-                    dijkstra,
-                    0,
-                    &[*path.nodes.first().unwrap(), *path.nodes.last().unwrap()],
-                    alpha,
-                )
-                .unwrap();
-                for i in 0..EDGE_COST_DIMENSION{
-                    sum_optimal_costs[i] += result.total_dimension_costs[i];
-                }
-            }
-            
-            let dif = costs_by_alpha(&sum_costs, &alpha)
-                - costs_by_alpha(&sum_optimal_costs, &alpha);
+                    .graph
+                    .find_shortest_path(
+                        dijkstra,
+                        0,
+                        &[*path.nodes.first().unwrap(), *path.nodes.last().unwrap()],
+                        alpha,
+                    )
+                    .unwrap();
+                let dif =
+                    costs_by_alpha(&path.total_dimension_costs, &alpha) - costs_by_alpha(&result.total_dimension_costs, &alpha);
+                sum_dif += dif;
+    
+                let mut cost_dif: Costs = [0.0; EDGE_COST_DIMENSION];
 
-            if dif - accuracy <= 0.0 {
+                cost_dif
+                    .iter_mut()
+                    .zip(path.total_dimension_costs.iter().zip(result.total_dimension_costs.iter()))
+                    .for_each(|(c, (p, r))| *c = r - p);
+
+                self.lp.add_constraint(&cost_dif)?;
+            }
+            if sum_dif - accuracy <= 0.0 {
+                //DEBUG
+                //println!("Some: dif = {}", sum_dif);
+                //DEBUG END
                 return Ok(Some(alpha));
             }
-
-            let mut cost_dif: Costs = [0.0; EDGE_COST_DIMENSION];
-
-            cost_dif
-                .iter_mut()
-                .zip(sum_costs.iter().zip(sum_optimal_costs.iter()))
-                .for_each(|(c, (p, r))| *c = r - p);
-
-            self.lp.add_constraint(&cost_dif)?;
             match self.lp.solve()? {
                 Some((pref, delta)) => {
-                    if delta < 0.0 {
+                    if delta + accuracy< 0.0 {
+                        //DEBUG
+                        //println!("None: delta = {}, dif = {}", delta, sum_dif);
+                        //DEBUG END
                         return Ok(None);
                     }
                     if prev_alphas.iter().any(|a| a == &pref) {
+                        //DEBUG
+                        //println!("None: repeated alpha");
+                        //DEBUG END
                         return Ok(None);
                     }
                     alpha = pref;
                     prev_alphas.push(alpha);
                 }
-                None => return Ok(None),
+                None => {
+                    //DEBUG
+                     //println!("None: infeasible");
+                    //DEBUG END
+                    return Ok(None);
+                }
             }
         }
     }
@@ -216,9 +221,9 @@ impl<'a, 'b> PreferenceEstimator<'a, 'b> {
     ) -> MyResult<Preference> {
         self.lp.reset().expect("LP Process could not be reset");
         let mut sum_costs = [0.0; EDGE_COST_DIMENSION];
-        for path in paths{
+        for path in paths {
             let costs = path.total_dimension_costs;
-            for i in 0..EDGE_COST_DIMENSION{
+            for i in 0..EDGE_COST_DIMENSION {
                 sum_costs[i] += costs[i];
             }
         }
@@ -232,23 +237,23 @@ impl<'a, 'b> PreferenceEstimator<'a, 'b> {
         prev_alphas.push(alpha);
         loop {
             let mut sum_optimal_costs = [0.0; EDGE_COST_DIMENSION];
-            for path in paths{
+            for path in paths {
                 let result = self
-                .graph
-                .find_shortest_path(
-                    dijkstra,
-                    0,
-                    &[*path.nodes.first().unwrap(), *path.nodes.last().unwrap()],
-                    alpha,
-                )
-                .unwrap();
-                for i in 0..EDGE_COST_DIMENSION{
+                    .graph
+                    .find_shortest_path(
+                        dijkstra,
+                        0,
+                        &[*path.nodes.first().unwrap(), *path.nodes.last().unwrap()],
+                        alpha,
+                    )
+                    .unwrap();
+                for i in 0..EDGE_COST_DIMENSION {
                     sum_optimal_costs[i] += result.total_dimension_costs[i];
                 }
             }
-            
-            let dif = costs_by_alpha(&sum_costs, &alpha)
-                - costs_by_alpha(&sum_optimal_costs, &alpha);
+
+            let dif =
+                costs_by_alpha(&sum_costs, &alpha) - costs_by_alpha(&sum_optimal_costs, &alpha);
 
             if dif - accuracy <= 0.0 {
                 return Ok(alpha);

@@ -194,7 +194,9 @@ impl<'a, 'b> TrajectoryAnalysis<'a, 'b> {
         let mut cuts = MyVec::new();
         let mut start = 0u32;
         let mut best_pref = None;
+        let mut best_subpath = path.get_subpath(self.graph, start, start);
         let mut paths = contraint_paths.clone();
+        let mut estimator = PreferenceEstimator::new(self.graph, self.lp);
         while start < path_length - 1 {
             let mut low = start;
             let mut high = path_length;
@@ -205,7 +207,6 @@ impl<'a, 'b> TrajectoryAnalysis<'a, 'b> {
                     let res = SinglePreferenceDecomposition{ cuts, preference : [-1.0; EDGE_COST_DIMENSION]};
                     return Ok(res);
                 }
-                let mut estimator = PreferenceEstimator::new(self.graph, self.lp);
                 let subpath = path.get_subpath(self.graph, start, m);
                 paths.push(subpath.clone());
                 let pref = estimator.calc_preference_for_multiple_paths(self.dijkstra, &paths)?;
@@ -214,19 +215,19 @@ impl<'a, 'b> TrajectoryAnalysis<'a, 'b> {
                     low = m + 1;
                     best_pref = pref;
                     best_cut = m;
+                    best_subpath = subpath;
                 } else {
                     high = m;
                 }
                 if low >= high {
                     cuts.push(best_cut);
-                    paths.push(subpath);
+                    paths.push(best_subpath.clone());
                     break;
                 }
             }
             start = best_cut;
         }
         let res = SinglePreferenceDecomposition{ cuts, preference : best_pref.unwrap()};
-
         Ok(res)
     }
 }
