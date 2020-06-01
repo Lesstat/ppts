@@ -146,6 +146,83 @@ impl<'a, 'b> PreferenceEstimator<'a, 'b> {
         }
     }
 
+    pub fn calc_preference_for_multiple_paths_with_additional_constraints(
+        &mut self,
+        dijkstra: &mut Dijkstra,
+        paths: &Vec<Path>,
+        constraints: &Vec<Costs>,
+    ) -> MyResult<(Option<Preference>, Vec<Vec<Costs>>)> {
+        self.lp.reset().expect("LP Process could not be reset");
+
+        for c in constraints {
+            self.lp.add_constraint(&c)?;
+        }
+
+        let accuracy = 0.0001;
+
+        let mut prev_alphas: Vec<Preference> = Vec::new();
+        let mut alpha = EQUAL_WEIGHTS;
+        prev_alphas.push(alpha);
+        let mut constraints_by_path : Vec<Vec<Costs>> = vec![Vec::new(); paths.len()];
+        loop {
+            let mut sum_dif = 0.0;
+            for i in 0..paths.len() {
+                let result = self
+                    .graph
+                    .find_shortest_path(
+                        dijkstra,
+                        0,
+                        &[*paths[i].nodes.first().unwrap(), *paths[i].nodes.last().unwrap()],
+                        alpha,
+                    )
+                    .unwrap();
+                let dif =
+                    costs_by_alpha(&paths[i].total_dimension_costs, &alpha) - costs_by_alpha(&result.total_dimension_costs, &alpha);
+                sum_dif += dif;
+    
+                let mut cost_dif: Costs = [0.0; EDGE_COST_DIMENSION];
+
+                cost_dif
+                    .iter_mut()
+                    .zip(paths[i].total_dimension_costs.iter().zip(result.total_dimension_costs.iter()))
+                    .for_each(|(c, (p, r))| *c = r - p);
+
+                self.lp.add_constraint(&cost_dif)?;
+                constraints_by_path[i].push(cost_dif);
+            }
+            if sum_dif - accuracy <= 0.0 {
+                //DEBUG
+                //println!("Some: dif = {}", sum_dif);
+                //DEBUG END
+                return Ok((Some(alpha), constraints_by_path));
+            }
+            match self.lp.solve()? {
+                Some((pref, delta)) => {
+                    if delta + accuracy< 0.0 {
+                        //DEBUG
+                        //println!("None: delta = {}, dif = {}", delta, sum_dif);
+                        //DEBUG END
+                        return Ok((None, constraints_by_path));
+                    }
+                    if prev_alphas.iter().any(|a| a == &pref) {
+                        //DEBUG
+                        //println!("None: repeated alpha");
+                        //DEBUG END
+                        return Ok((None, constraints_by_path));
+                    }
+                    alpha = pref;
+                    prev_alphas.push(alpha);
+                }
+                None => {
+                    //DEBUG
+                     //println!("None: infeasible");
+                    //DEBUG END
+                    return Ok((None, constraints_by_path));
+                }
+            }
+        }
+    }
+
     pub fn calc_representative_preference(
         &mut self,
         dijkstra: &mut Dijkstra,

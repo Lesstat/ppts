@@ -197,6 +197,7 @@ impl<'a, 'b> TrajectoryAnalysis<'a, 'b> {
         let mut best_subpath = path.get_subpath(self.graph, start, start);
         let mut paths = contraint_paths.clone();
         let mut estimator = PreferenceEstimator::new(self.graph, self.lp);
+        let mut constraints : Vec<Costs> = Vec::new();
         while start < path_length - 1 {
             let mut low = start;
             let mut high = path_length;
@@ -209,13 +210,23 @@ impl<'a, 'b> TrajectoryAnalysis<'a, 'b> {
                 }
                 let subpath = path.get_subpath(self.graph, start, m);
                 paths.push(subpath.clone());
-                let pref = estimator.calc_preference_for_multiple_paths(self.dijkstra, &paths)?;
+                let res = estimator.calc_preference_for_multiple_paths_with_additional_constraints(self.dijkstra, &paths, &constraints)?;
                 paths.pop();
+                let new_constraints_by_path = res.1;
+                for i in 0..new_constraints_by_path.len()-1{
+                    for c in new_constraints_by_path[i].iter(){
+                        constraints.push(*c);
+                    }
+                }
+                let pref = res.0;
                 if pref.is_some() {
                     low = m + 1;
                     best_pref = pref;
                     best_cut = m;
                     best_subpath = subpath;
+                    for c in new_constraints_by_path[new_constraints_by_path.len()-1].iter(){
+                        constraints.push(*c);
+                    }
                 } else {
                     high = m;
                 }
