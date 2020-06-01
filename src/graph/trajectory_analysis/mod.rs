@@ -110,80 +110,87 @@ impl<'a, 'b> TrajectoryAnalysis<'a, 'b> {
         }
     }
 
-   /* pub fn find_all_non_optimal_segments(&mut self, path: &mut Path) -> MyResult<Vec<SubPath>> {
+   pub fn find_all_non_optimal_segments(&mut self, path: &mut Path) -> MyResult<Vec<SubPath>> {
         let mut subpaths = Vec::new();
-        let mut start: i32 = 0;
-        let lenPath: u32 = path.nodes.len() as u32;
-        let mut stop: i32 = lenPath as i32;
+        let mut start= 0 as u32;
+        let path_length = path.nodes.len() as u32;
+        let mut stop = path_length-1 as u32;
         let mut esti = PreferenceEstimator::new(&self.graph, self.lp);
-        while start != stop {
-            let mut step = (stop - start + 1) / 2;
-            while step > 0 {
-                if esti
-                    .calc_preference(self.dijkstra, &path, start as u32, stop as u32)?
-                    .is_none()
-                {
-                    start += step;
-                    if start >= stop {
-                        start = stop - 1;
-                    }
+        let mut count_prefs = 0;
+        while start < stop{
+            let pref = esti.calc_preference(self.dijkstra, &path, start, stop)?;
+            count_prefs += 1;
+            if pref.is_some(){
+                break;
+            }
+            let mut low = start;
+            let mut high = path_length ;
+            let mut best_cut = stop;
+            loop {
+                let m = (low + high) / 2;
+                if start == m {
+                    stop = start+1;
+                    break;
+                }
+                let pref = esti.calc_preference(self.dijkstra, &path, start, m)?;
+                count_prefs += 1;
+                //DEBUG
+                if count_prefs > 1000 {
+                    println!("Endlosschleife fuer stop");
+                }
+                //DEBUG END
+                if pref.is_some() {
+                    low = m + 1;
                 } else {
-                    if start == 0 {
-                        return Ok(subpaths);
+                    if m < best_cut{
+                        best_cut = m;
                     }
-                    start -= step;
-                    if start < 0 {
-                        start = 0;
-                    }
+                    high = m;
                 }
-                if step == 1 {
-                    step = 0;
+                if low >= high {
+                    stop = best_cut;
+                    break;
+                }
+            }
+            low = start;
+            high = stop;
+            best_cut = start;
+            loop {
+                let m = (low + high) / 2;
+                let pref = esti.calc_preference(self.dijkstra, &path, m, stop)?;
+                count_prefs += 1;
+                //DEBUG
+                if count_prefs > 2000 {
+                    println!("Endlosschleife fuer start");
+                }
+                //DEBUG END
+                if pref.is_some() {
+                    high = m;
                 } else {
-                    step = (step + 1) / 2;
-                }
-            }
-            if esti
-                .calc_preference(self.dijkstra, &path, start as u32, stop as u32)?
-                .is_some()
-            {
-                if start == 0 {
-                    return Ok(subpaths);
-                }
-                start -= 1;
-            }
-            let subpath = SubPath {
-                start_index: start as u32,
-                end_index: stop as u32,
-            };
-            subpaths.push(subpath);
-        }
-
-        // Ignore last cut as it is the last node of the path
-        if let Some((_, cut_indices)) = path.algo_split.as_ref().and_then(|s| s.cuts.split_last()) {
-            let mut res = Vec::new();
-            for c in cut_indices {
-                let mut dist = 1;
-                loop {
-                    let mut esti = PreferenceEstimator::new(&self.graph, self.lp);
-                    if esti
-                        .calc_preference(self.dijkstra, &path, c - dist, c + 1)?
-                        .is_none()
-                    {
-                        let subpath = SubPath {
-                            start_index: c - dist,
-                            end_index: c + 1,
-                        };
-                        res.push(subpath);
-                        break;
+                    if m > best_cut{
+                        best_cut = m;
                     }
-                    dist += 1;
+                    low = m+1;
+                }
+                if low >= high {
+                    start = best_cut;
+                    break;
                 }
             }
-            Ok(res)
-        } else {
-            Ok(Vec::new())
+            if start < stop {
+                let subpath = SubPath {
+                    start_index: start,
+                    end_index: stop,
+                };
+                subpaths.push(subpath);
+            }else{
+                panic!{"Error"};
+            }
+            start += 1;
+            stop = path_length-1;
         }
-    }*/
+        Ok(subpaths)
+    }
 
     pub fn get_single_preference_decomposition(
         &mut self,
