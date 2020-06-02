@@ -37,6 +37,12 @@ pub struct RepresentativeAlphaResult {
     pub better_aggregated_cost_diff_by_rng: Option<usize>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub wrong_turns: Option<Vec<usize>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub single_preference_decomposition_longest_optimal_subpath: Option<Vec<usize>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub single_preference_decomposition_representative_pref: Option<Vec<usize>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub single_preference_decomposition_greedy: Option<Vec<usize>>,
 }
 
 impl RepresentativeAlphaResult {

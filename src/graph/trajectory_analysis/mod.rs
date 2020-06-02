@@ -1,7 +1,7 @@
 use super::dijkstra::Dijkstra;
 use super::path::{Path, PathSplit};
 use super::Graph;
-use crate::helpers::{Costs, MyVec, Preference};
+use crate::helpers::{Costs, MyVec, Preference, add_edge_costs, costs_by_alpha};
 use crate::lp::{LpProcess, PreferenceEstimator};
 use crate::MyResult;
 use crate::EDGE_COST_DIMENSION;
@@ -116,10 +116,10 @@ impl<'a, 'b> TrajectoryAnalysis<'a, 'b> {
         let path_length = path.nodes.len() as u32;
         let mut stop = path_length-1 as u32;
         let mut esti = PreferenceEstimator::new(&self.graph, self.lp);
-        let mut count_prefs = 0;
+        let mut _count_prefs = 0;
         while start < stop{
             let pref = esti.calc_preference(self.dijkstra, &path, start, stop)?;
-            count_prefs += 1;
+            _count_prefs += 1;
             if pref.is_some(){
                 break;
             }
@@ -133,12 +133,7 @@ impl<'a, 'b> TrajectoryAnalysis<'a, 'b> {
                     break;
                 }
                 let pref = esti.calc_preference(self.dijkstra, &path, start, m)?;
-                count_prefs += 1;
-                //DEBUG
-                if count_prefs > 1000 {
-                    println!("Endlosschleife fuer stop");
-                }
-                //DEBUG END
+                _count_prefs += 1;
                 if pref.is_some() {
                     low = m + 1;
                 } else {
@@ -158,12 +153,7 @@ impl<'a, 'b> TrajectoryAnalysis<'a, 'b> {
             loop {
                 let m = (low + high) / 2;
                 let pref = esti.calc_preference(self.dijkstra, &path, m, stop)?;
-                count_prefs += 1;
-                //DEBUG
-                if count_prefs > 2000 {
-                    println!("Endlosschleife fuer start");
-                }
-                //DEBUG END
+                _count_prefs += 1;
                 if pref.is_some() {
                     high = m;
                 } else {
@@ -246,6 +236,66 @@ impl<'a, 'b> TrajectoryAnalysis<'a, 'b> {
             start = best_cut;
         }
         let res = SinglePreferenceDecomposition{ cuts, preference : best_pref.unwrap()};
+        Ok(res)
+    }
+
+    pub fn get_single_preference_decomposition_for_given_preference(
+        &mut self,
+        preference: Preference,
+        path: &Path,
+    ) -> MyResult<SinglePreferenceDecomposition> {
+        let path_length = path.nodes.len() as u32;
+        let mut cuts = MyVec::new();
+        let mut start = 0u32;
+        let mut costs_until_edge = Vec::new();
+        let mut sum_costs : Costs = [0.0; EDGE_COST_DIMENSION];
+        let accuracy = 0.0001;
+        costs_until_edge.push(sum_costs);
+        for edge in path.edges.iter() {
+            sum_costs = add_edge_costs(&sum_costs, &self.graph.edges[*edge as usize].edge_costs);
+            costs_until_edge.push(sum_costs);
+        }
+
+        while start < path_length - 1 {
+            let mut low = start;
+            let mut high = path_length;
+            let mut best_cut = 0;
+            loop {
+                let m = (low + high) / 2;
+                if start == m {
+                    let res = SinglePreferenceDecomposition{ cuts, preference};
+                    return Ok(res);
+                }
+                let optimal_path = self.graph.find_shortest_path(self.dijkstra, 0, &[path.nodes[start], path.nodes[m]], preference).unwrap();
+                let mut costs_subpath = [0.0; EDGE_COST_DIMENSION];
+                for i in 0..EDGE_COST_DIMENSION {
+                    costs_subpath[i] = costs_until_edge[m as usize][i] - costs_until_edge[start as usize][i];
+                }
+                //DEBUG
+                let subpath = path.get_subpath(self.graph, start, m+1);
+                for i in 0..EDGE_COST_DIMENSION {
+                    if subpath.total_dimension_costs[i] - costs_subpath[i] > accuracy || subpath.total_dimension_costs[i] - costs_subpath[i] < -accuracy{
+                        println!("real costs: {:?}", subpath.total_dimension_costs);
+                        println!("calculated costs: {:?}", costs_subpath);
+                        panic!("subpath costs are wrong!")
+                    }
+                }
+                //DEBUG END
+                let diff = costs_by_alpha(&costs_subpath, &preference) - costs_by_alpha(&optimal_path.total_dimension_costs, &preference);
+                if diff < accuracy {
+                    low = m + 1;
+                    best_cut = m;
+                } else {
+                    high = m;
+                }
+                if low >= high {
+                    cuts.push(best_cut);
+                    break;
+                }
+            }
+            start = best_cut;
+        }
+        let res = SinglePreferenceDecomposition{ cuts, preference };
         Ok(res)
     }
 }
