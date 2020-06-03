@@ -119,7 +119,7 @@ fn main() -> MyResult<()> {
                         }
                         aggregated_cost_diffs_by_rng.push(aggregated_cost_diff);
                     }
-                    s.better_aggregated_cost_diff_by_rng = Some(better);
+                    s.better_aggregated_cost_diff_by_rng = Some((better as f64) / (nr_of_random_preferences as f64));
                     if save_random_results {
                         s.aggregated_cost_diffs_by_rng = Some(aggregated_cost_diffs_by_rng);
                     }
@@ -136,7 +136,7 @@ fn main() -> MyResult<()> {
     progress.finish();
 
     let outfile_name =
-        out_file.unwrap_or_else(|| format!("overlap_test_results_{}.json", start_time));
+        out_file.unwrap_or_else(|| format!("aggregated_costs_test_results_{}.json", start_time));
 
     println!("writing results to {}", outfile_name);
 

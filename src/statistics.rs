@@ -32,11 +32,11 @@ pub struct RepresentativeAlphaResult {
     pub overlap: f64,
     pub run_time: usize,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub better_overlap_by_rng: Option<usize>,
+    pub better_overlap_by_rng: Option<f64>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub overlaps_by_rng: Option<Vec<f64>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub better_aggregated_cost_diff_by_rng: Option<usize>,
+    pub better_aggregated_cost_diff_by_rng: Option<f64>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub aggregated_cost_diffs_by_rng: Option<Vec<f64>>,
     #[serde(skip_serializing_if = "Option::is_none")]

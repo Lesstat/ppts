@@ -114,7 +114,7 @@ fn main() -> MyResult<()> {
                         }
                         overlaps_by_rng.push(overlap);
                     }
-                    s.better_overlap_by_rng = Some(better);
+                    s.better_overlap_by_rng = Some((better as f64) / (nr_of_random_preferences as f64));
                     if save_random_results{
                         s.overlaps_by_rng = Some(overlaps_by_rng);
                     }
