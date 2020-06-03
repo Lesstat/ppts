@@ -25,6 +25,12 @@ struct Opts {
     repr_results_file: String,
     /// File to write output to
     out_file: Option<String>,
+    /// Number of random preferences per trajectory
+    #[structopt(short, long, default_value = "100")]
+    nr_of_random_preferences: usize,
+    /// Save random results
+    #[structopt(short, long)]
+    save_random_results: bool,
     /// Number of threads to use
     #[structopt(short, long, default_value = "8")]
     threads: usize,
@@ -34,6 +40,8 @@ fn main() -> MyResult<()> {
     let Opts {
         repr_results_file,
         out_file,
+        nr_of_random_preferences,
+        save_random_results,
         threads,
     } = Opts::from_args();
 
@@ -91,25 +99,25 @@ fn main() -> MyResult<()> {
                 let mut counter = 0;
                 let accuracy = 0.00001;
                 for (p, s) in chunk {
-                    if s.overlap >= 1.0 {
-                        s.better_overlap_by_rng = Some(0);
-                        continue;
-                    }
                     let ids = [*p.nodes.first().unwrap(), *p.nodes.last().unwrap()];
                     let mut better = 0;
-                    for _ in 0..100 {
+                    let mut overlaps_by_rng = Vec::new();
+                    for _ in 0..nr_of_random_preferences {
                         let rand_pref = randomized_preference(&mut rng);
 
                         let alpha_path = graph
                             .find_shortest_path(&mut d, 0, &ids, rand_pref)
                             .expect("there must be a path");
-
-                        if overlap(p, &alpha_path) > s.overlap + accuracy {
+                        let overlap = overlap(p, &alpha_path);
+                        if  overlap > s.overlap + accuracy {
                             better += 1;
                         }
+                        overlaps_by_rng.push(overlap);
                     }
                     s.better_overlap_by_rng = Some(better);
-
+                    if save_random_results{
+                        s.overlaps_by_rng = Some(overlaps_by_rng);
+                    }
                     if counter % 10 == 0 {
                         progress.inc(10);
                     }

@@ -28,6 +28,12 @@ struct Opts {
     repr_results_file: String,
     /// File to write output to
     out_file: Option<String>,
+    /// Number of random preferences per trajectory
+    #[structopt(short, long, default_value = "100")]
+    nr_of_random_preferences: usize,
+    /// Save random results
+    #[structopt(short, long)]
+    save_random_results: bool,
     /// Number of threads to use
     #[structopt(short, long, default_value = "8")]
     threads: usize,
@@ -37,6 +43,8 @@ fn main() -> MyResult<()> {
     let Opts {
         repr_results_file,
         out_file,
+        nr_of_random_preferences,
+        save_random_results,
         threads,
     } = Opts::from_args();
 
@@ -94,13 +102,10 @@ fn main() -> MyResult<()> {
                 let mut counter = 0;
                 let accuracy = 0.00001;
                 for (p, s) in chunk {
-                    if s.aggregated_cost_diff == 0.0 {
-                        s.better_aggregated_cost_diff_by_rng = Some(0);
-                        continue;
-                    }
                     let ids = [*p.nodes.first().unwrap(), *p.nodes.last().unwrap()];
                     let mut better = 0;
-                    for _ in 0..100 {
+                    let mut aggregated_cost_diffs_by_rng = Vec::new();
+                    for _ in 0..nr_of_random_preferences {
                         let rand_pref = randomized_preference(&mut rng);
 
                         let alpha_path = graph
@@ -108,11 +113,16 @@ fn main() -> MyResult<()> {
                             .expect("there must be a path");
                         let aggregated_random_costs = costs_by_alpha(&alpha_path.total_dimension_costs, &rand_pref);
                         let aggregated_costs = costs_by_alpha(&s.trajectory_cost, &rand_pref);
-                        if aggregated_costs - aggregated_random_costs + accuracy < s.aggregated_cost_diff {
+                        let aggregated_cost_diff = aggregated_costs - aggregated_random_costs;
+                        if aggregated_cost_diff + accuracy < s.aggregated_cost_diff {
                             better += 1;
                         }
+                        aggregated_cost_diffs_by_rng.push(aggregated_cost_diff);
                     }
                     s.better_aggregated_cost_diff_by_rng = Some(better);
+                    if save_random_results {
+                        s.aggregated_cost_diffs_by_rng = Some(aggregated_cost_diffs_by_rng);
+                    }
 
                     if counter % 10 == 0 {
                         progress.inc(10);
