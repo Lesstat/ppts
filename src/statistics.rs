@@ -42,11 +42,17 @@ pub struct RepresentativeAlphaResult {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub wrong_turns: Option<Vec<usize>>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub nr_of_wrong_turns: Option<usize>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub nr_of_wrong_turns_by_rng: Option<Vec<usize>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub single_preference_decomposition_longest_optimal_subpath: Option<Vec<usize>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub single_preference_decomposition_representative_pref: Option<Vec<usize>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub single_preference_decomposition_greedy: Option<Vec<usize>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub random_preferences: Option<Vec<Preference>>,
 }
 
 impl RepresentativeAlphaResult {

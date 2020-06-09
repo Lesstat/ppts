@@ -105,9 +105,9 @@ fn main() -> MyResult<()> {
                     let ids = [*p.nodes.first().unwrap(), *p.nodes.last().unwrap()];
                     let mut better = 0;
                     let mut aggregated_cost_diffs_by_rng = Vec::new();
+                    let mut random_preferences = Vec::new();
                     for _ in 0..nr_of_random_preferences {
                         let rand_pref = randomized_preference(&mut rng);
-
                         let alpha_path = graph
                             .find_shortest_path(&mut d, 0, &ids, rand_pref)
                             .expect("there must be a path");
@@ -117,11 +117,15 @@ fn main() -> MyResult<()> {
                         if aggregated_cost_diff + accuracy < s.aggregated_cost_diff {
                             better += 1;
                         }
-                        aggregated_cost_diffs_by_rng.push(aggregated_cost_diff);
+                        if save_random_results {
+                            random_preferences.push(rand_pref);
+                            aggregated_cost_diffs_by_rng.push(aggregated_cost_diff);
+                        }
                     }
                     s.better_aggregated_cost_diff_by_rng = Some((better as f64) / (nr_of_random_preferences as f64));
                     if save_random_results {
                         s.aggregated_cost_diffs_by_rng = Some(aggregated_cost_diffs_by_rng);
+                        s.random_preferences = Some(random_preferences);
                     }
 
                     if counter % 10 == 0 {

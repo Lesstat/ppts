@@ -4,7 +4,9 @@ use preference_splitting::graph::{parse_minimal_graph_file, path::Path, Graph};
 use preference_splitting::graphml::GraphData;
 use preference_splitting::helpers::Preference;
 use preference_splitting::trajectories::{check_trajectory, read_trajectories};
-use preference_splitting::{statistics::read_representative_results, MyError, MyResult};
+use preference_splitting::{statistics::read_representative_results, MyError, MyResult, helpers::randomized_preference,};
+
+use rand::thread_rng;
 
 use std::convert::TryInto;
 use std::io::Write;
@@ -20,6 +22,9 @@ struct Opts {
     repr_results_file: String,
     /// File to write output to
     out_file: Option<String>,
+    /// Set number of random preferences for comparison (if > 0 only number of wrong turns will be saved)
+    #[structopt(short, long, default_value = "0")]
+    compare_with_rng: usize,
     /// Number of threads to use
     #[structopt(short, long, default_value = "8")]
     threads: usize,
@@ -29,6 +34,7 @@ fn main() -> MyResult<()> {
     let Opts {
         repr_results_file,
         out_file,
+        compare_with_rng,
         threads,
     } = Opts::from_args();
 
@@ -85,8 +91,20 @@ fn main() -> MyResult<()> {
             (scope.spawn(|_| {
                 let mut d = Dijkstra::new(&graph);
                 let mut counter = 0;
+                let mut rng = thread_rng();
                 for (p, s) in chunk {
-                    s.wrong_turns = Some(run_experiment(&graph, &mut d, p, &s.preference));
+                    if compare_with_rng == 0{
+                        s.wrong_turns = Some(run_experiment(&graph, &mut d, p, &s.preference));
+                    }
+                    else{
+                        let mut wrong_turns_by_rng = Vec::new();
+                        s.nr_of_wrong_turns = Some(run_experiment(&graph, &mut d, p, &s.preference).len());
+                        for _ in 0..compare_with_rng {
+                            let rand_pref = randomized_preference(&mut rng);
+                            wrong_turns_by_rng.push(run_experiment(&graph, &mut d, p, &rand_pref).len());
+                        }
+                        s.nr_of_wrong_turns_by_rng = Some(wrong_turns_by_rng);
+                    }
                     if counter % 10 == 0 {
                         progress.inc(10);
                     }
