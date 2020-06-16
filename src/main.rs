@@ -4,7 +4,7 @@ use std::time::Instant;
 
 use preference_splitting::graph::dijkstra::Dijkstra;
 use preference_splitting::graph::path::Path;
-use preference_splitting::graph::trajectory_analysis::TrajectoryAnalysis;
+use preference_splitting::graph::trajectory_analysis::{SubPath, TrajectoryAnalysis};
 use preference_splitting::graph::{parse_minimal_graph_file, Graph};
 use preference_splitting::graphml::{read_graphml, AttributeType, GraphData};
 use preference_splitting::helpers::MyVec;
@@ -53,26 +53,33 @@ fn run_experiment<'a, 'b>(
     if let Some(ref algo_split) = p.algo_split {
         s.preferences = algo_split.alphas.clone();
         s.cuts = algo_split.cuts.clone();
-
-        let start = Instant::now();
-
-        let subpaths = ta.find_non_optimal_segments(p)?;
-        let time = start.elapsed();
-        let non_opt_subpaths = NonOptSubPathsResult {
-            non_opt_subpaths: MyVec::<_>::from(
-                subpaths
-                    .iter()
-                    .map(|s| (s.start_index, s.end_index))
-                    .collect::<Vec<_>>(),
-            ),
-            runtime: time
-                .as_millis()
-                .try_into()
-                .expect("Couldn't convert run time into usize"),
-        };
-
-        s.non_opt_subpaths = Some(non_opt_subpaths);
     }
+
+    let start = Instant::now();
+    let subpaths = ta.find_all_non_optimal_segments(p)?;
+    let decomposition_windows = TrajectoryAnalysis::intersect_subpaths(&subpaths);
+    let time = start.elapsed();
+
+    let to_statistics_format = |subpaths: &[SubPath]| {
+        MyVec::<_>::from(
+            subpaths
+                .iter()
+                .map(|s| (s.start_index, s.end_index))
+                .collect::<Vec<_>>(),
+        )
+    };
+
+    let non_opt_subpaths = NonOptSubPathsResult {
+        non_opt_subpaths: to_statistics_format(&subpaths),
+        decomposition_windows: to_statistics_format(&decomposition_windows),
+        runtime: time
+            .as_millis()
+            .try_into()
+            .expect("Couldn't convert run time into usize"),
+    };
+
+    s.non_opt_subpaths = Some(non_opt_subpaths);
+
     Ok(())
 }
 
