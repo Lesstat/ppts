@@ -1,7 +1,8 @@
 use super::dijkstra::Dijkstra;
 use super::path::{Path, PathSplit};
+
 use super::Graph;
-use crate::helpers::{Costs, MyVec, Preference, add_edge_costs, costs_by_alpha};
+use crate::helpers::{add_edge_costs, costs_by_alpha, Costs, MyVec, Preference};
 use crate::lp::{LpProcess, PreferenceEstimator};
 use crate::MyResult;
 use crate::EDGE_COST_DIMENSION;
@@ -14,6 +15,7 @@ pub struct TrajectoryAnalysis<'a, 'b> {
     lp: &'b mut LpProcess,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct SubPath {
     /// Index of the path where the SubPath starts
     pub start_index: u32,
@@ -110,26 +112,26 @@ impl<'a, 'b> TrajectoryAnalysis<'a, 'b> {
         }
     }
 
-   pub fn find_all_non_optimal_segments(&mut self, path: &mut Path) -> MyResult<Vec<SubPath>> {
+    pub fn find_all_non_optimal_segments(&mut self, path: &mut Path) -> MyResult<Vec<SubPath>> {
         let mut subpaths = Vec::new();
-        let mut start= 0 as u32;
+        let mut start = 0 as u32;
         let path_length = path.nodes.len() as u32;
-        let mut stop = path_length-1 as u32;
+        let mut stop = path_length - 1 as u32;
         let mut esti = PreferenceEstimator::new(&self.graph, self.lp);
         let mut _count_prefs = 0;
-        while start < stop{
+        while start < stop {
             let pref = esti.calc_preference(self.dijkstra, &path, start, stop)?;
             _count_prefs += 1;
-            if pref.is_some(){
+            if pref.is_some() {
                 break;
             }
             let mut low = start;
-            let mut high = path_length ;
+            let mut high = path_length;
             let mut best_cut = stop;
             loop {
                 let m = (low + high) / 2;
                 if start == m {
-                    stop = start+1;
+                    stop = start + 1;
                     break;
                 }
                 let pref = esti.calc_preference(self.dijkstra, &path, start, m)?;
@@ -137,7 +139,7 @@ impl<'a, 'b> TrajectoryAnalysis<'a, 'b> {
                 if pref.is_some() {
                     low = m + 1;
                 } else {
-                    if m < best_cut{
+                    if m < best_cut {
                         best_cut = m;
                     }
                     high = m;
@@ -157,10 +159,10 @@ impl<'a, 'b> TrajectoryAnalysis<'a, 'b> {
                 if pref.is_some() {
                     high = m;
                 } else {
-                    if m > best_cut{
+                    if m > best_cut {
                         best_cut = m;
                     }
-                    low = m+1;
+                    low = m + 1;
                 }
                 if low >= high {
                     start = best_cut;
@@ -173,11 +175,11 @@ impl<'a, 'b> TrajectoryAnalysis<'a, 'b> {
                     end_index: stop,
                 };
                 subpaths.push(subpath);
-            }else{
-                panic!{"Error"};
+            } else {
+                panic! {"Error"};
             }
             start += 1;
-            stop = path_length-1;
+            stop = path_length - 1;
         }
         Ok(subpaths)
     }
@@ -194,7 +196,7 @@ impl<'a, 'b> TrajectoryAnalysis<'a, 'b> {
         let mut best_subpath = path.get_subpath(self.graph, start, start);
         let mut paths = contraint_paths.clone();
         let mut estimator = PreferenceEstimator::new(self.graph, self.lp);
-        let mut constraints : Vec<Costs> = Vec::new();
+        let mut constraints: Vec<Costs> = Vec::new();
         while start < path_length - 1 {
             let mut low = start;
             let mut high = path_length;
@@ -202,16 +204,24 @@ impl<'a, 'b> TrajectoryAnalysis<'a, 'b> {
             loop {
                 let m = (low + high) / 2;
                 if start == m {
-                    let res = SinglePreferenceDecomposition{ cuts, preference : [-1.0; EDGE_COST_DIMENSION]};
+                    let res = SinglePreferenceDecomposition {
+                        cuts,
+                        preference: [-1.0; EDGE_COST_DIMENSION],
+                    };
                     return Ok(res);
                 }
                 let subpath = path.get_subpath(self.graph, start, m);
                 paths.push(subpath.clone());
-                let res = estimator.calc_preference_for_multiple_paths_with_additional_constraints(self.dijkstra, &paths, &constraints)?;
+                let res = estimator
+                    .calc_preference_for_multiple_paths_with_additional_constraints(
+                        self.dijkstra,
+                        &paths,
+                        &constraints,
+                    )?;
                 paths.pop();
                 let new_constraints_by_path = res.1;
-                for i in 0..new_constraints_by_path.len()-1{
-                    for c in new_constraints_by_path[i].iter(){
+                for i in 0..new_constraints_by_path.len() - 1 {
+                    for c in new_constraints_by_path[i].iter() {
                         constraints.push(*c);
                     }
                 }
@@ -221,7 +231,7 @@ impl<'a, 'b> TrajectoryAnalysis<'a, 'b> {
                     best_pref = pref;
                     best_cut = m;
                     best_subpath = subpath;
-                    for c in new_constraints_by_path[new_constraints_by_path.len()-1].iter(){
+                    for c in new_constraints_by_path[new_constraints_by_path.len() - 1].iter() {
                         constraints.push(*c);
                     }
                 } else {
@@ -235,7 +245,10 @@ impl<'a, 'b> TrajectoryAnalysis<'a, 'b> {
             }
             start = best_cut;
         }
-        let res = SinglePreferenceDecomposition{ cuts, preference : best_pref.unwrap()};
+        let res = SinglePreferenceDecomposition {
+            cuts,
+            preference: best_pref.unwrap(),
+        };
         Ok(res)
     }
 
@@ -248,7 +261,7 @@ impl<'a, 'b> TrajectoryAnalysis<'a, 'b> {
         let mut cuts = MyVec::new();
         let mut start = 0u32;
         let mut costs_until_edge = Vec::new();
-        let mut sum_costs : Costs = [0.0; EDGE_COST_DIMENSION];
+        let mut sum_costs: Costs = [0.0; EDGE_COST_DIMENSION];
         let accuracy = 0.0001;
         costs_until_edge.push(sum_costs);
         for edge in path.edges.iter() {
@@ -263,25 +276,37 @@ impl<'a, 'b> TrajectoryAnalysis<'a, 'b> {
             loop {
                 let m = (low + high) / 2;
                 if start == m {
-                    let res = SinglePreferenceDecomposition{ cuts, preference};
+                    let res = SinglePreferenceDecomposition { cuts, preference };
                     return Ok(res);
                 }
-                let optimal_path = self.graph.find_shortest_path(self.dijkstra, 0, &[path.nodes[start], path.nodes[m]], preference).unwrap();
+                let optimal_path = self
+                    .graph
+                    .find_shortest_path(
+                        self.dijkstra,
+                        0,
+                        &[path.nodes[start], path.nodes[m]],
+                        preference,
+                    )
+                    .unwrap();
                 let mut costs_subpath = [0.0; EDGE_COST_DIMENSION];
                 for i in 0..EDGE_COST_DIMENSION {
-                    costs_subpath[i] = costs_until_edge[m as usize][i] - costs_until_edge[start as usize][i];
+                    costs_subpath[i] =
+                        costs_until_edge[m as usize][i] - costs_until_edge[start as usize][i];
                 }
                 //DEBUG
-                let subpath = path.get_subpath(self.graph, start, m+1);
+                let subpath = path.get_subpath(self.graph, start, m + 1);
                 for i in 0..EDGE_COST_DIMENSION {
-                    if subpath.total_dimension_costs[i] - costs_subpath[i] > accuracy || subpath.total_dimension_costs[i] - costs_subpath[i] < -accuracy{
+                    if subpath.total_dimension_costs[i] - costs_subpath[i] > accuracy
+                        || subpath.total_dimension_costs[i] - costs_subpath[i] < -accuracy
+                    {
                         println!("real costs: {:?}", subpath.total_dimension_costs);
                         println!("calculated costs: {:?}", costs_subpath);
                         panic!("subpath costs are wrong!")
                     }
                 }
                 //DEBUG END
-                let diff = costs_by_alpha(&costs_subpath, &preference) - costs_by_alpha(&optimal_path.total_dimension_costs, &preference);
+                let diff = costs_by_alpha(&costs_subpath, &preference)
+                    - costs_by_alpha(&optimal_path.total_dimension_costs, &preference);
                 if diff < accuracy {
                     low = m + 1;
                     best_cut = m;
@@ -295,8 +320,31 @@ impl<'a, 'b> TrajectoryAnalysis<'a, 'b> {
             }
             start = best_cut;
         }
-        let res = SinglePreferenceDecomposition{ cuts, preference };
+        let res = SinglePreferenceDecomposition { cuts, preference };
         Ok(res)
+    }
+
+    pub fn intersect_subpaths(subpaths: &[SubPath]) -> Vec<SubPath> {
+        let mut res = vec![];
+        let mut used = vec![false; subpaths.len()];
+
+        for i in 0..subpaths.len() {
+            let mut tmp = subpaths[i];
+            let mut intersected = false;
+            for j in i + 1..subpaths.len() {
+                let s2 = &subpaths[j];
+                if tmp.end_index > s2.start_index {
+                    tmp.start_index = s2.start_index;
+                    used[j] = true;
+                    intersected = true;
+                }
+            }
+            if intersected || !used[i] {
+                res.push(tmp);
+            }
+        }
+
+        res
     }
 }
 
@@ -530,14 +578,14 @@ mod tests {
         // Ascii art of the graph
         // s,t,x = vertices
         // +,-,| = part of an edge
-        //                                   1
-        //			     +---------------+
-        //			     |		     |
-        //	       	 1       1   |	 1       1   |
+        //                                1
+        //			             +---------------+
+        //			             |	    	     |
+        //	       	 1       1   	 1       1   |
         //	     s-------x-------x-------x-------x-----t
-        //		     |		     |
-        //		     |	     1       |
-        //		     +---------------+
+        //		         |               |
+        //		         |	     1       |
+        //		         +---------------+
 
         let one_cost = [1.0; EDGE_COST_DIMENSION];
 
@@ -577,5 +625,125 @@ mod tests {
         assert_eq!(3, non_opts[0].end_index);
         assert_eq!(2, non_opts[1].start_index);
         assert_eq!(4, non_opts[1].end_index);
+    }
+
+    #[test]
+    fn test_intersecting_no_nos() {
+        let subpaths = [];
+        let intersected = TrajectoryAnalysis::intersect_subpaths(&subpaths);
+        assert!(intersected.is_empty())
+    }
+
+    #[test]
+    fn intersect_disjoint_nos() {
+        let first = SubPath {
+            start_index: 0,
+            end_index: 2,
+        };
+        let second = SubPath {
+            start_index: 3,
+            end_index: 4,
+        };
+        let subpaths = [first, second];
+
+        let intersected = TrajectoryAnalysis::intersect_subpaths(&subpaths);
+        assert_eq!(intersected.len(), 2);
+        assert_eq!(intersected[0], first);
+        assert_eq!(intersected[1], second);
+    }
+
+    #[test]
+    fn intersect_overlapping_nos() {
+        let first = SubPath {
+            start_index: 0,
+            end_index: 5,
+        };
+        let second = SubPath {
+            start_index: 3,
+            end_index: 7,
+        };
+        let subpaths = [first, second];
+
+        let intersected = TrajectoryAnalysis::intersect_subpaths(&subpaths);
+        assert_eq!(intersected.len(), 1);
+        assert_eq!(
+            intersected[0],
+            SubPath {
+                start_index: 3,
+                end_index: 5
+            }
+        );
+    }
+
+    #[test]
+    fn intersect_three_overlapping_nos() {
+        let first = SubPath {
+            start_index: 0,
+            end_index: 5,
+        };
+        let second = SubPath {
+            start_index: 3,
+            end_index: 15,
+        };
+
+        let third = SubPath {
+            start_index: 12,
+            end_index: 20,
+        };
+        let subpaths = [first, second, third];
+
+        let intersected = TrajectoryAnalysis::intersect_subpaths(&subpaths);
+        assert_eq!(intersected.len(), 2);
+        assert_eq!(
+            intersected[0],
+            SubPath {
+                start_index: 3,
+                end_index: 5,
+            }
+        );
+
+        assert_eq!(
+            intersected[1],
+            SubPath {
+                start_index: 12,
+                end_index: 15,
+            }
+        );
+    }
+
+    #[test]
+    fn intersect_two_overlapping_nos_plus_one() {
+        let first = SubPath {
+            start_index: 0,
+            end_index: 5,
+        };
+        let second = SubPath {
+            start_index: 3,
+            end_index: 15,
+        };
+
+        let third = SubPath {
+            start_index: 17,
+            end_index: 20,
+        };
+        let subpaths = [first, second, third];
+
+        let intersected = TrajectoryAnalysis::intersect_subpaths(&subpaths);
+        assert_eq!(intersected.len(), 2);
+        assert_eq!(
+            intersected[0],
+            SubPath {
+                start_index: 3,
+                end_index: 5,
+            }
+        );
+
+        assert_eq!(
+            intersected[1],
+            SubPath {
+                start_index: 17,
+                end_index: 20,
+            }
+        );
     }
 }
