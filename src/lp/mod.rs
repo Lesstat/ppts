@@ -43,10 +43,10 @@ impl<'a, 'b> PreferenceEstimator<'a, 'b> {
             let mut total_cost_dif = 0.0;
 
             for i in 0..EDGE_COST_DIMENSION {
-                let mut dif = costs[i] - result.total_dimension_costs[i];
-                if dif < accuracy && dif > -accuracy {
-                    dif = 0.0;
-                }
+                let dif = result.total_dimension_costs[i] - costs[i];
+                // if dif < accuracy && dif > -accuracy {
+                //     dif = 0.0;
+                // }
                 cost_dif[i] = dif;
                 total_cost_dif += dif * alpha[i];
             }
@@ -58,7 +58,7 @@ impl<'a, 'b> PreferenceEstimator<'a, 'b> {
                 //println!("");
                 //DEBUG END
                 return Ok(Some(alpha));
-            } else if total_cost_dif <= accuracy {
+            } else if total_cost_dif + accuracy >= 0.0 {
                 // println!(
                 //     "Shouldn't happen: result: {:?}; user: {:?}",
                 //     result.user_split.get_total_cost(),
