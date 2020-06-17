@@ -326,22 +326,22 @@ impl<'a, 'b> TrajectoryAnalysis<'a, 'b> {
 
     pub fn intersect_subpaths(subpaths: &[SubPath]) -> Vec<SubPath> {
         let mut res = vec![];
-        let mut used = vec![false; subpaths.len()];
+        let mut last_decomposition_point = 0;
 
-        for i in 0..subpaths.len() {
-            let mut tmp = subpaths[i];
-            let mut intersected = false;
-            for j in i + 1..subpaths.len() {
-                let s2 = &subpaths[j];
+        for (i, s) in subpaths.iter().enumerate() {
+            let mut tmp = *s;
+            if tmp.start_index < last_decomposition_point
+                && last_decomposition_point < tmp.end_index
+            {
+                continue;
+            }
+            for s2 in &subpaths[i + 1..] {
                 if tmp.end_index > s2.start_index {
+                    last_decomposition_point = tmp.end_index - 1;
                     tmp.start_index = s2.start_index;
-                    used[j] = true;
-                    intersected = true;
                 }
             }
-            if intersected || !used[i] {
-                res.push(tmp);
-            }
+            res.push(tmp);
         }
 
         res
@@ -676,42 +676,6 @@ mod tests {
     }
 
     #[test]
-    fn intersect_three_overlapping_nos() {
-        let first = SubPath {
-            start_index: 0,
-            end_index: 5,
-        };
-        let second = SubPath {
-            start_index: 3,
-            end_index: 15,
-        };
-
-        let third = SubPath {
-            start_index: 12,
-            end_index: 20,
-        };
-        let subpaths = [first, second, third];
-
-        let intersected = TrajectoryAnalysis::intersect_subpaths(&subpaths);
-        assert_eq!(intersected.len(), 2);
-        assert_eq!(
-            intersected[0],
-            SubPath {
-                start_index: 3,
-                end_index: 5,
-            }
-        );
-
-        assert_eq!(
-            intersected[1],
-            SubPath {
-                start_index: 12,
-                end_index: 15,
-            }
-        );
-    }
-
-    #[test]
     fn intersect_two_overlapping_nos_plus_one() {
         let first = SubPath {
             start_index: 0,
@@ -745,5 +709,58 @@ mod tests {
                 end_index: 20,
             }
         );
+    }
+
+    #[test]
+    fn test_intersection_with_real_world_data() {
+        let to_subpath = |indices: &[u32; 2]| SubPath {
+            start_index: indices[0],
+            end_index: indices[1],
+        };
+
+        let subpaths = [
+            [14, 41],
+            [16, 42],
+            [45, 47],
+            [52, 99],
+            [55, 103],
+            [69, 106],
+            [72, 113],
+            [77, 115],
+            [79, 121],
+            [80, 139],
+            [81, 140],
+            [84, 141],
+            [118, 143],
+            [120, 170],
+            [170, 172],
+            [214, 216],
+            [253, 304],
+            [254, 305],
+            [258, 306],
+            [260, 307],
+            [264, 310],
+            [330, 332],
+        ]
+        .iter()
+        .map(to_subpath)
+        .collect::<Vec<_>>();
+        let intersected = TrajectoryAnalysis::intersect_subpaths(&subpaths);
+
+        let results = [
+            [16, 41],
+            [45, 47],
+            [84, 99],
+            [120, 143],
+            [170, 172],
+            [214, 216],
+            [264, 304],
+            [330, 332],
+        ]
+        .iter()
+        .map(to_subpath)
+        .collect::<Vec<_>>();
+
+        assert_eq!(intersected, results);
     }
 }
