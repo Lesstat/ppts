@@ -41,8 +41,8 @@ impl<'a, 'b> PreferenceEstimator<'a, 'b> {
                 .unwrap();
             let mut cost_dif: Costs = [0.0; EDGE_COST_DIMENSION];
             let mut total_cost_dif = 0.0;
-            
-            for i in 0..EDGE_COST_DIMENSION{
+
+            for i in 0..EDGE_COST_DIMENSION {
                 let mut dif = costs[i] - result.total_dimension_costs[i];
                 if dif < accuracy && dif > -accuracy {
                     dif = 0.0;
@@ -50,7 +50,6 @@ impl<'a, 'b> PreferenceEstimator<'a, 'b> {
                 cost_dif[i] = dif;
                 total_cost_dif += dif * alpha[i];
             }
-
 
             if &path.nodes[source_idx..=target_idx] == result.nodes.as_slice() {
                 // Catch case paths are equal, but have slightly different costs (precision issue)
@@ -75,7 +74,7 @@ impl<'a, 'b> PreferenceEstimator<'a, 'b> {
                 //DEBUG END
                 return Ok(res);
             }
-            
+
             self.lp.add_constraint(&cost_dif)?;
             //DEBUG
             /*let dif =
@@ -102,12 +101,12 @@ impl<'a, 'b> PreferenceEstimator<'a, 'b> {
                     alpha = pref;
                     prev_alphas.push(alpha);
                 }
-                
+
                 None => {
                     //DEBUG
                     //println!("None: infeasible");
                     //DEBUG END
-                    return Ok(None)
+                    return Ok(None);
                 }
             }
         }
@@ -137,15 +136,19 @@ impl<'a, 'b> PreferenceEstimator<'a, 'b> {
                         alpha,
                     )
                     .unwrap();
-                let dif =
-                    costs_by_alpha(&path.total_dimension_costs, &alpha) - costs_by_alpha(&result.total_dimension_costs, &alpha);
+                let dif = costs_by_alpha(&path.total_dimension_costs, &alpha)
+                    - costs_by_alpha(&result.total_dimension_costs, &alpha);
                 sum_dif += dif;
-    
+
                 let mut cost_dif: Costs = [0.0; EDGE_COST_DIMENSION];
 
                 cost_dif
                     .iter_mut()
-                    .zip(path.total_dimension_costs.iter().zip(result.total_dimension_costs.iter()))
+                    .zip(
+                        path.total_dimension_costs
+                            .iter()
+                            .zip(result.total_dimension_costs.iter()),
+                    )
                     .for_each(|(c, (p, r))| *c = r - p);
 
                 self.lp.add_constraint(&cost_dif)?;
@@ -158,7 +161,7 @@ impl<'a, 'b> PreferenceEstimator<'a, 'b> {
             }
             match self.lp.solve()? {
                 Some((pref, delta)) => {
-                    if delta + accuracy< 0.0 {
+                    if delta + accuracy < 0.0 {
                         //DEBUG
                         //println!("None: delta = {}, dif = {}", delta, sum_dif);
                         //DEBUG END
@@ -175,7 +178,7 @@ impl<'a, 'b> PreferenceEstimator<'a, 'b> {
                 }
                 None => {
                     //DEBUG
-                     //println!("None: infeasible");
+                    //println!("None: infeasible");
                     //DEBUG END
                     return Ok(None);
                 }
@@ -200,7 +203,7 @@ impl<'a, 'b> PreferenceEstimator<'a, 'b> {
         let mut prev_alphas: Vec<Preference> = Vec::new();
         let mut alpha = EQUAL_WEIGHTS;
         prev_alphas.push(alpha);
-        let mut constraints_by_path : Vec<Vec<Costs>> = vec![Vec::new(); paths.len()];
+        let mut constraints_by_path: Vec<Vec<Costs>> = vec![Vec::new(); paths.len()];
         loop {
             let mut sum_dif = 0.0;
             for i in 0..paths.len() {
@@ -209,19 +212,27 @@ impl<'a, 'b> PreferenceEstimator<'a, 'b> {
                     .find_shortest_path(
                         dijkstra,
                         0,
-                        &[*paths[i].nodes.first().unwrap(), *paths[i].nodes.last().unwrap()],
+                        &[
+                            *paths[i].nodes.first().unwrap(),
+                            *paths[i].nodes.last().unwrap(),
+                        ],
                         alpha,
                     )
                     .unwrap();
-                let dif =
-                    costs_by_alpha(&paths[i].total_dimension_costs, &alpha) - costs_by_alpha(&result.total_dimension_costs, &alpha);
+                let dif = costs_by_alpha(&paths[i].total_dimension_costs, &alpha)
+                    - costs_by_alpha(&result.total_dimension_costs, &alpha);
                 sum_dif += dif;
-    
+
                 let mut cost_dif: Costs = [0.0; EDGE_COST_DIMENSION];
 
                 cost_dif
                     .iter_mut()
-                    .zip(paths[i].total_dimension_costs.iter().zip(result.total_dimension_costs.iter()))
+                    .zip(
+                        paths[i]
+                            .total_dimension_costs
+                            .iter()
+                            .zip(result.total_dimension_costs.iter()),
+                    )
                     .for_each(|(c, (p, r))| *c = r - p);
 
                 self.lp.add_constraint(&cost_dif)?;
@@ -235,7 +246,7 @@ impl<'a, 'b> PreferenceEstimator<'a, 'b> {
             }
             match self.lp.solve()? {
                 Some((pref, delta)) => {
-                    if delta + accuracy< 0.0 {
+                    if delta + accuracy < 0.0 {
                         //DEBUG
                         //println!("None: delta = {}, dif = {}", delta, sum_dif);
                         //DEBUG END
@@ -252,7 +263,7 @@ impl<'a, 'b> PreferenceEstimator<'a, 'b> {
                 }
                 None => {
                     //DEBUG
-                     //println!("None: infeasible");
+                    //println!("None: infeasible");
                     //DEBUG END
                     return Ok((None, constraints_by_path));
                 }
