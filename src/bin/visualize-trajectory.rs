@@ -1,5 +1,4 @@
 use preference_splitting::geojson::read_geojson_map;
-use preference_splitting::helpers::Preference;
 use preference_splitting::statistics::{
     read_representative_results, read_splitting_results, ExperimentResults,
     RepresentativeAlphaResult, SplittingStatistics,
@@ -11,7 +10,7 @@ use std::collections::HashMap;
 use std::io::Write;
 use std::path::PathBuf;
 
-use geojson::{Feature, FeatureCollection, Geometry, Value};
+use geojson::{Feature, FeatureCollection, Geometry};
 use structopt::StructOpt;
 
 #[derive(StructOpt)]
@@ -32,13 +31,26 @@ struct Opt {
 #[derive(StructOpt)]
 enum Style {
     /// Visualizes the different optimal segments in different colors
-    Cuts,
-    /// Visualizes the non-optimal sub paths
-    NonOpts,
+    Preferences,
     /// Visualize the trajectory alone
-    TrajectoryOnly,
+    TrajectoryOnly {
+        #[structopt(default_value = "#000")]
+        color: String,
+    },
     /// Visualize decomposition windows
-    Windows,
+    Windows {
+        #[structopt(default_value = "#000")]
+        trajectory_color: String,
+        #[structopt(default_value = "#00f")]
+        nos_color: String,
+    },
+    #[allow(dead_code)]
+    Representative {
+        #[structopt(default_value = "#000")]
+        trajectory_color: String,
+        #[structopt(default_value = "#00f")]
+        representatvive_color: String,
+    },
 }
 
 enum Results {
@@ -118,16 +130,33 @@ fn main() -> MyResult<()> {
     println!("creating geojson");
 
     let feature_collection = match style {
-        Style::Cuts => visualize_cuts(&trajectory, &stats.splitting(), &geojson_map),
-        Style::NonOpts => visualize_snops(&trajectory, &stats.splitting(), &geojson_map),
-        Style::TrajectoryOnly => {
-            visualize_trajectories(&trajectory, &mut OneColor("#000".to_owned()), &geojson_map)
-        }
-        Style::Windows => visualize_trajectories(
+        Style::Preferences => visualize_trajectories(
             &trajectory,
-            &mut DecompositionWindowsStyle::new(stats.splitting()),
+            &mut PreferenceVis::new(stats.splitting()),
             &geojson_map,
         ),
+        Style::TrajectoryOnly { color } => {
+            visualize_trajectories(&trajectory, &mut OneColor(color), &geojson_map)
+        }
+        Style::Windows {
+            trajectory_color,
+            nos_color,
+        } => visualize_trajectories(
+            &trajectory,
+            &mut DecompositionWindowsStyle::new(stats.splitting(), trajectory_color, nos_color),
+            &geojson_map,
+        ),
+        Style::Representative {
+            ..
+            // trajectory_color,
+            // representatvive_color,
+        } => {
+            let _ = stats.representative();
+            todo!(
+                r#"Make this happen, first vis trajectory in traj_color,
+                   then read graph, then calc repr, then vis repr in repr_color"#
+            );
+        }
     };
 
     let outfile = format!("geojson_trajectory_{}.json", trajectory_id);
@@ -141,199 +170,21 @@ fn main() -> MyResult<()> {
     Ok(())
 }
 
-fn visualize_cuts(
-    trajectory: &Trajectory,
-    splitting: &SplittingStatistics,
-    geojson_map: &HashMap<i64, Geometry>,
-) -> FeatureCollection {
-    let mut last_cut = 0;
-    let features = splitting
-        .cuts
-        .iter()
-        .enumerate()
-        .map(|(i, &c)| {
-            let line_strings: Vec<Geometry> = trajectory.path[last_cut..c]
-                .iter()
-                .map(|e| geojson_map[e].clone())
-                .collect();
-            last_cut = c;
-
-            let geo_collection = Value::GeometryCollection(line_strings);
-            let geometry = Geometry {
-                bbox: None,
-                foreign_members: None,
-                value: geo_collection,
-            };
-
-            Feature {
-                id: None,
-                bbox: None,
-                foreign_members: None,
-                properties: create_cut_properties(i, &splitting.preferences[i]),
-                geometry: Some(geometry),
-            }
-        })
-        .collect();
-
-    FeatureCollection {
-        bbox: None,
-        features,
-        foreign_members: None,
+fn load_results(style: &Style, path: PathBuf) -> Result<Results, Box<dyn std::error::Error>> {
+    if let Style::Representative { .. } = style {
+        Ok(Results::Representative(read_representative_results(path)?))
+    } else {
+        Ok(Results::Splitting(read_splitting_results(path)?))
     }
 }
 
-fn create_cut_properties(
-    i: usize,
-    p: &Preference,
-) -> Option<serde_json::map::Map<String, serde_json::Value>> {
-    use serde_json::{Number, Value};
-    let colors = [
-        "#e41a1c", "#377eb8", "#4daf4a", "#984ea3", "#ff7f00", "#ffff33", "#a65628", "#f781bf",
-        "#999999",
-    ];
-
-    let index = i % colors.len();
-
-    let mut map = serde_json::map::Map::new();
-
-    map.insert("stroke".to_owned(), Value::String(colors[index].to_owned()));
-
-    map.insert(
-        "stroke-opacity".to_owned(),
-        Value::Number(Number::from_f64(0.5).unwrap()),
-    );
-
-    map.insert(
-        "stroke-width".to_owned(),
-        Value::Number(Number::from_f64(5.0).unwrap()),
-    );
-    map.insert("preference".to_owned(), Value::String(format!("{:?}", p)));
-
-    Some(map)
-}
-
-fn visualize_snops(
-    trajectory: &Trajectory,
-    splitting: &SplittingStatistics,
-    geojson_map: &HashMap<i64, Geometry>,
-) -> FeatureCollection {
-    let mut last = 0;
-    let mut features: Vec<_> = splitting
-        .non_opt_subpaths
-        .as_ref()
-        .expect("SNOPs data not present in Results file")
-        .non_opt_subpaths
-        .iter()
-        .flat_map(|(start, end)| {
-            let line_strings = trajectory.path[last..*start]
-                .iter()
-                .map(|e| geojson_map[e].clone())
-                .collect();
-
-            let geo_collection = Value::GeometryCollection(line_strings);
-            let geometry = Geometry {
-                bbox: None,
-                foreign_members: None,
-                value: geo_collection,
-            };
-
-            let opt = Feature {
-                id: None,
-                bbox: None,
-                foreign_members: None,
-                properties: create_non_opt_properties(false),
-                geometry: Some(geometry),
-            };
-
-            let line_strings = trajectory.path[*start..*end]
-                .iter()
-                .map(|e| geojson_map[e].clone())
-                .collect();
-
-            let geo_collection = Value::GeometryCollection(line_strings);
-            let geometry = Geometry {
-                bbox: None,
-                foreign_members: None,
-                value: geo_collection,
-            };
-
-            let non_opt = Feature {
-                id: None,
-                bbox: None,
-                foreign_members: None,
-                properties: create_non_opt_properties(true),
-                geometry: Some(geometry),
-            };
-
-            last = *end;
-
-            vec![opt, non_opt]
-        })
-        .collect();
-
-    let line_strings = trajectory.path[last as usize..trajectory.path.len()]
-        .iter()
-        .map(|e| geojson_map[e].clone())
-        .collect();
-
-    let geo_collection = Value::GeometryCollection(line_strings);
-    let geometry = Geometry {
-        bbox: None,
-        foreign_members: None,
-        value: geo_collection,
-    };
-
-    let opt = Feature {
-        id: None,
-        bbox: None,
-        foreign_members: None,
-        properties: create_non_opt_properties(false),
-        geometry: Some(geometry),
-    };
-
-    features.push(opt);
-
-    FeatureCollection {
-        bbox: None,
-        features,
-        foreign_members: None,
-    }
-}
-
-fn create_non_opt_properties(
-    non_opt: bool,
-) -> Option<serde_json::map::Map<String, serde_json::Value>> {
-    use serde_json::{Number, Value};
-    let mut map = serde_json::map::Map::new();
-
-    let color = if non_opt { "#ff0000" } else { "#000000" };
-
-    map.insert("stroke".to_owned(), Value::String(color.to_owned()));
-
-    map.insert(
-        "stroke-opacity".to_owned(),
-        Value::Number(Number::from_f64(0.5).unwrap()),
-    );
-
-    map.insert(
-        "stroke-width".to_owned(),
-        Value::Number(Number::from_f64(5.0).unwrap()),
-    );
-
-    Some(map)
-}
-
-fn load_results(_style: &Style, path: PathBuf) -> Result<Results, Box<dyn std::error::Error>> {
-    Ok(Results::Splitting(read_splitting_results(path)?))
-}
-
-trait SegmentStyle {
+trait EdgeStyle {
     fn properties(&mut self) -> Option<serde_json::map::Map<String, serde_json::Value>>;
 }
 
 struct OneColor(String);
 
-impl SegmentStyle for OneColor {
+impl EdgeStyle for OneColor {
     fn properties(&mut self) -> Option<serde_json::Map<String, serde_json::Value>> {
         use serde_json::{Number, Value};
 
@@ -363,19 +214,32 @@ struct DecompositionWindowsStyle<'a> {
 }
 
 impl<'a> DecompositionWindowsStyle<'a> {
-    pub fn new(splitting: &'a SplittingStatistics) -> DecompositionWindowsStyle {
+    pub fn new(
+        splitting: &'a SplittingStatistics,
+        traj_color: String,
+        nos_color: String,
+    ) -> DecompositionWindowsStyle {
         DecompositionWindowsStyle {
             splitting,
-            traj_color: "#000".to_string(),
-            nos_color: "#0000ff".to_string(),
+            traj_color,
+            nos_color,
             path_counter: 0,
         }
     }
 }
 
-impl<'a> SegmentStyle for DecompositionWindowsStyle<'a> {
+impl<'a> EdgeStyle for DecompositionWindowsStyle<'a> {
     fn properties(&mut self) -> Option<serde_json::Map<String, serde_json::Value>> {
         use serde_json::{Number, Value};
+
+        if self
+            .splitting
+            .removed_self_loop_indices
+            .iter()
+            .any(|&loop_index| loop_index == self.path_counter)
+        {
+            self.path_counter -= 1;
+        }
 
         let mut map = serde_json::map::Map::new();
 
@@ -413,9 +277,69 @@ impl<'a> SegmentStyle for DecompositionWindowsStyle<'a> {
     }
 }
 
+struct PreferenceVis<'a> {
+    splitting: &'a SplittingStatistics,
+    path_counter: u32,
+}
+
+impl<'a> PreferenceVis<'a> {
+    fn new(splitting: &'a SplittingStatistics) -> Self {
+        Self {
+            splitting,
+            path_counter: 0,
+        }
+    }
+}
+
+impl<'a> EdgeStyle for PreferenceVis<'a> {
+    fn properties(&mut self) -> Option<serde_json::Map<String, serde_json::Value>> {
+        use serde_json::{Number, Value};
+
+        if self
+            .splitting
+            .removed_self_loop_indices
+            .iter()
+            .any(|&loop_index| loop_index == self.path_counter)
+        {
+            self.path_counter -= 1;
+        }
+
+        let colors = [
+            "#e41a1c", "#377eb8", "#4daf4a", "#984ea3", "#ff7f00", "#ffff33", "#a65628", "#f781bf",
+            "#999999",
+        ];
+
+        let index = match self.splitting.cuts.binary_search(&self.path_counter) {
+            Ok(i) => i,
+            Err(i) => i,
+        } % colors.len();
+
+        let mut map = serde_json::map::Map::new();
+
+        map.insert("stroke".to_owned(), Value::String(colors[index].to_owned()));
+
+        map.insert(
+            "stroke-opacity".to_owned(),
+            Value::Number(Number::from_f64(0.5).unwrap()),
+        );
+
+        map.insert(
+            "stroke-width".to_owned(),
+            Value::Number(Number::from_f64(5.0).unwrap()),
+        );
+        map.insert(
+            "preference".to_owned(),
+            Value::String(format!("{:?}", self.splitting.preferences[index])),
+        );
+
+        self.path_counter += 1;
+        Some(map)
+    }
+}
+
 fn visualize_trajectories(
     trajectory: &Trajectory,
-    style: &mut dyn SegmentStyle,
+    style: &mut dyn EdgeStyle,
     geojson_map: &HashMap<i64, Geometry>,
 ) -> FeatureCollection {
     let features = trajectory
