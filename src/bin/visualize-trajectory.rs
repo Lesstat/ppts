@@ -342,7 +342,7 @@ fn visualize_trajectories(
     style: &mut dyn EdgeStyle,
     geojson_map: &HashMap<i64, Geometry>,
 ) -> FeatureCollection {
-    let features = trajectory
+    let mut features: Vec<Feature> = trajectory
         .path
         .iter()
         .map(|e| geojson_map[e].clone())
@@ -355,9 +355,50 @@ fn visualize_trajectories(
         })
         .collect();
 
+    let start_marker_pos = match &features[0].geometry.as_ref().unwrap().value {
+        geojson::Value::LineString(line) => &line[0],
+        _ => panic!("edge is not a linestring I don't know what to do"),
+    };
+
+    let start_marker = make_marker(start_marker_pos.to_vec(), "#02dace", "start");
+
+    let end_marker_pos = match &features.last().unwrap().geometry.as_ref().unwrap().value {
+        geojson::Value::LineString(line) => &line[0],
+        _ => panic!("edge is not a linestring I don't know what to do"),
+    };
+
+    let end_marker = make_marker(end_marker_pos.to_vec(), "#0822f0", "end");
+
+    features.insert(0, start_marker);
+    features.push(end_marker);
+
     FeatureCollection {
         bbox: None,
         features,
+        foreign_members: None,
+    }
+}
+
+fn make_marker(pos: Vec<f64>, color: &str, title: &str) -> Feature {
+    let mut map = serde_json::map::Map::new();
+    map.insert(
+        "marker-color".to_string(),
+        serde_json::Value::String(color.to_string()),
+    );
+
+    map.insert(
+        "title".to_string(),
+        serde_json::Value::String(title.to_string()),
+    );
+    Feature {
+        bbox: None,
+        geometry: Some(Geometry {
+            bbox: None,
+            value: geojson::Value::Point(pos),
+            foreign_members: None,
+        }),
+        id: None,
+        properties: Some(map),
         foreign_members: None,
     }
 }
