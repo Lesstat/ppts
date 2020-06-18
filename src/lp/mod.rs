@@ -44,14 +44,11 @@ impl<'a, 'b> PreferenceEstimator<'a, 'b> {
 
             for i in 0..EDGE_COST_DIMENSION {
                 let dif = result.total_dimension_costs[i] - costs[i];
-                // if dif < accuracy && dif > -accuracy {
-                //     dif = 0.0;
-                // }
                 cost_dif[i] = dif;
                 total_cost_dif += dif * alpha[i];
             }
 
-            if &path.nodes[source_idx..=target_idx] == result.nodes.as_slice() {
+            if &path.edges[source_idx..target_idx] == result.edges.as_slice() {
                 // Catch case paths are equal, but have slightly different costs (precision issue)
                 //DEBUG
                 //println!("Some: same path, total cost dif: {}", total_cost_dif);
