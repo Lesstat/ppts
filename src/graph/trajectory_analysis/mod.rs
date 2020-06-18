@@ -112,7 +112,7 @@ impl<'a, 'b> TrajectoryAnalysis<'a, 'b> {
         }
     }
 
-    pub fn find_all_non_optimal_segments(&mut self, path: &mut Path) -> MyResult<Vec<SubPath>> {
+    pub fn find_all_non_optimal_segments(&mut self, path: &Path) -> MyResult<Vec<SubPath>> {
         let mut subpaths = Vec::new();
         let mut start = 0 as u32;
         let path_length = path.nodes.len() as u32;
@@ -182,6 +182,34 @@ impl<'a, 'b> TrajectoryAnalysis<'a, 'b> {
             stop = path_length - 1;
         }
         Ok(subpaths)
+    }
+
+    pub fn find_decomposition_windows(&mut self, path: &mut Path) -> MyResult<Vec<SubPath>> {
+        if path.algo_split.is_none() {
+            self.find_preference(path)?;
+        }
+
+        let mut d = Dijkstra::new(self.graph);
+        let mut esti = PreferenceEstimator::new(&self.graph, self.lp);
+
+        let mut res = Vec::new();
+        if let Some(split) = &path.algo_split {
+            for consecutive_cuts in split.cuts.windows(2) {
+                let current_cut = consecutive_cuts[0];
+                let next_cut = consecutive_cuts[1];
+
+                let mut s = current_cut - 1;
+                while esti.calc_preference(&mut d, path, s, next_cut)?.is_some() {
+                    s -= 1;
+                }
+                res.push(SubPath {
+                    start_index: s,
+                    end_index: current_cut + 1,
+                });
+            }
+        }
+
+        Ok(res)
     }
 
     pub fn get_single_preference_decomposition(
