@@ -342,32 +342,45 @@ fn visualize_trajectories(
     style: &mut dyn EdgeStyle,
     geojson_map: &HashMap<i64, Geometry>,
 ) -> FeatureCollection {
-    let mut features: Vec<Feature> = trajectory
+    let line_strings = trajectory
         .path
         .iter()
         .map(|e| geojson_map[e].clone())
-        .map(|geom| Feature {
+        .collect::<Vec<_>>();
+
+    let mut features: Vec<Feature> = Vec::new();
+    for (i, geom) in line_strings.into_iter().enumerate() {
+        // TODO fix offset problem caused by removed self loops
+        if i > 0 && trajectory.trip_id.iter().any(|id| id.1 == i as u32) {
+            let break_marker_pos = match &geom.value {
+                geojson::Value::LineString(line) => &line[0],
+                _ => panic!("edge is not a linestring I don't know what to do"),
+            };
+            let break_marker = make_marker(break_marker_pos.to_vec(), "#FBFF45", "b");
+            features.push(break_marker);
+        }
+        features.push(Feature {
             id: None,
             bbox: None,
             foreign_members: None,
             properties: style.properties(),
             geometry: Some(geom),
         })
-        .collect();
+    }
 
     let start_marker_pos = match &features[0].geometry.as_ref().unwrap().value {
         geojson::Value::LineString(line) => &line[0],
         _ => panic!("edge is not a linestring I don't know what to do"),
     };
 
-    let start_marker = make_marker(start_marker_pos.to_vec(), "#02dace", "start");
+    let start_marker = make_marker(start_marker_pos.to_vec(), "#000", "s");
 
     let end_marker_pos = match &features.last().unwrap().geometry.as_ref().unwrap().value {
         geojson::Value::LineString(line) => &line[0],
         _ => panic!("edge is not a linestring I don't know what to do"),
     };
 
-    let end_marker = make_marker(end_marker_pos.to_vec(), "#0822f0", "end");
+    let end_marker = make_marker(end_marker_pos.to_vec(), "#000", "t");
 
     features.insert(0, start_marker);
     features.push(end_marker);
@@ -379,7 +392,7 @@ fn visualize_trajectories(
     }
 }
 
-fn make_marker(pos: Vec<f64>, color: &str, title: &str) -> Feature {
+fn make_marker(pos: Vec<f64>, color: &str, symbol: &str) -> Feature {
     let mut map = serde_json::map::Map::new();
     map.insert(
         "marker-color".to_string(),
@@ -387,8 +400,8 @@ fn make_marker(pos: Vec<f64>, color: &str, title: &str) -> Feature {
     );
 
     map.insert(
-        "title".to_string(),
-        serde_json::Value::String(title.to_string()),
+        "marker-symbol".to_string(),
+        serde_json::Value::String(symbol.to_string()),
     );
     Feature {
         bbox: None,
