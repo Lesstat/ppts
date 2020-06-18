@@ -194,18 +194,33 @@ impl<'a, 'b> TrajectoryAnalysis<'a, 'b> {
 
         let mut res = Vec::new();
         if let Some(split) = &path.algo_split {
+            let mut prev_cut = 0;
             for consecutive_cuts in split.cuts.windows(2) {
                 let current_cut = consecutive_cuts[0];
                 let next_cut = consecutive_cuts[1];
 
                 let mut s = current_cut - 1;
-                while esti.calc_preference(&mut d, path, s, next_cut)?.is_some() {
+                while let Some(pref) = esti.calc_preference(&mut d, path, s, next_cut)? {
+                    if s <= prev_cut {
+                        dbg!(&split.cuts);
+                        dbg!(s);
+                        dbg!(prev_cut);
+                        dbg!(current_cut);
+                        dbg!(next_cut);
+                        dbg!(pref);
+                        panic!(
+                            "This indicates that the cut at {} is not necessary in trajectory {:?}",
+                            current_cut, path.id
+                        );
+                    }
+
                     s -= 1;
                 }
                 res.push(SubPath {
                     start_index: s,
                     end_index: current_cut + 1,
                 });
+                prev_cut = current_cut;
             }
         }
 
