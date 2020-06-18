@@ -106,6 +106,7 @@ fn main() -> MyResult<()> {
                     let mut better = 0;
                     let mut aggregated_cost_diffs_by_rng = Vec::new();
                     let mut random_preferences = Vec::new();
+                    let mut random_costs = Vec::new();
                     for _ in 0..nr_of_random_preferences {
                         let rand_pref = randomized_preference(&mut rng);
                         let alpha_path = graph
@@ -120,12 +121,14 @@ fn main() -> MyResult<()> {
                         if save_random_results {
                             random_preferences.push(rand_pref);
                             aggregated_cost_diffs_by_rng.push(aggregated_cost_diff);
+                            random_costs.push(alpha_path.total_dimension_costs);
                         }
                     }
                     s.better_aggregated_cost_diff_by_rng = Some((better as f64) / (nr_of_random_preferences as f64));
                     if save_random_results {
                         s.aggregated_cost_diffs_by_rng = Some(aggregated_cost_diffs_by_rng);
                         s.random_preferences = Some(random_preferences);
+                        s.random_costs = Some(random_costs);
                     }
 
                     if counter % 10 == 0 {
