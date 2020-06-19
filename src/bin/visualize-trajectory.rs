@@ -4,13 +4,18 @@ use preference_splitting::statistics::{
     RepresentativeAlphaResult, SplittingStatistics,
 };
 use preference_splitting::trajectories::{read_trajectories, Trajectory};
-use preference_splitting::MyResult;
+use preference_splitting::{
+    graph::{dijkstra::Dijkstra, parse_minimal_graph_file},
+    graphml::GraphData,
+    MyResult,
+};
 
 use std::collections::HashMap;
 use std::io::Write;
 use std::path::PathBuf;
 
 use geojson::{Feature, FeatureCollection, Geometry};
+use serde_json::{Number, Value};
 use structopt::StructOpt;
 
 #[derive(StructOpt)]
@@ -44,12 +49,12 @@ enum Style {
         #[structopt(default_value = "#00f")]
         nos_color: String,
     },
-    #[allow(dead_code)]
-    Representative {
+    /// Visualize trajectory and its representative path
+    ReprPath {
         #[structopt(default_value = "#000")]
         trajectory_color: String,
         #[structopt(default_value = "#00f")]
-        representatvive_color: String,
+        representative_color: String,
     },
 }
 
@@ -137,7 +142,9 @@ fn main() -> MyResult<()> {
             &geojson_map,
         ),
 
-        Style::TrajectoryOnly { color } => visualize_trajectories(&trajectory,&[], &mut OneColor(color), &geojson_map),
+        Style::TrajectoryOnly { color } => {
+            visualize_trajectories(&trajectory, &[], &mut OneColor(color), &geojson_map)
+        }
         Style::Windows {
             trajectory_color,
             nos_color,
@@ -147,16 +154,33 @@ fn main() -> MyResult<()> {
             &mut DecompositionWindowsStyle::new(stats.splitting(), trajectory_color, nos_color),
             &geojson_map,
         ),
-        Style::Representative {
-            ..
-            // trajectory_color,
-            // representatvive_color,
+        Style::ReprPath {
+            trajectory_color,
+            representative_color,
         } => {
-            let _ = stats.representative();
-            todo!(
-                r#"Make this happen, first vis trajectory in traj_color,
-                   then read graph, then calc repr, then vis repr in repr_color"#
+            let repr = stats.representative();
+            let tra_features = visualize_trajectories(
+                &trajectory,
+                &[],
+                &mut OneColor(trajectory_color),
+                &geojson_map,
             );
+            let path = representative_path(&results, &trajectory, &repr)?;
+            let mut repr_features = visualize_trajectories(
+                &path,
+                &[],
+                &mut OneColor(representative_color),
+                &geojson_map,
+            );
+
+            let mut features = tra_features.features;
+            features.append(&mut repr_features.features);
+
+            FeatureCollection {
+                bbox: None,
+                features,
+                foreign_members: None,
+            }
         }
     };
 
@@ -171,8 +195,29 @@ fn main() -> MyResult<()> {
     Ok(())
 }
 
+fn representative_path(
+    results: &Results,
+    trajectory: &Trajectory,
+    repr: &RepresentativeAlphaResult,
+) -> MyResult<Trajectory> {
+    let graph_data = load_graph(results)?;
+    let mut d = Dijkstra::new(&graph_data.graph);
+
+    let first_edge_id = graph_data.edge_lookup[&trajectory.path[0 as u32].to_string()];
+    let last_edge_id = graph_data.edge_lookup[&trajectory.path.last().unwrap().to_string()];
+    let first_node = graph_data.graph.edges[first_edge_id].source_id;
+    let last_node = graph_data.graph.edges[last_edge_id].target_id;
+
+    let path = graph_data
+        .graph
+        .find_shortest_path(&mut d, 0, &[first_node, last_node], repr.preference)
+        .expect("Could not find representative path");
+
+    Ok(Trajectory::from_path(&path, &graph_data.edge_lookup))
+}
+
 fn load_results(style: &Style, path: PathBuf) -> Result<Results, Box<dyn std::error::Error>> {
-    if let Style::Representative { .. } = style {
+    if let Style::ReprPath { .. } = style {
         Ok(Results::Representative(read_representative_results(path)?))
     } else {
         Ok(Results::Splitting(read_splitting_results(path)?))
@@ -188,21 +233,10 @@ struct OneColor(String);
 
 impl EdgeStyle for OneColor {
     fn properties(&mut self, _: u32) -> Option<serde_json::Map<String, serde_json::Value>> {
-        use serde_json::{Number, Value};
-
         let mut map = serde_json::map::Map::new();
 
         map.insert("stroke".to_owned(), Value::String(self.0.clone()));
-
-        map.insert(
-            "stroke-opacity".to_owned(),
-            Value::Number(Number::from_f64(0.7).unwrap()),
-        );
-
-        map.insert(
-            "stroke-width".to_owned(),
-            Value::Number(Number::from_f64(5.0).unwrap()),
-        );
+        add_line_properties(&mut map);
 
         Some(map)
     }
@@ -230,8 +264,6 @@ impl<'a> DecompositionWindowsStyle<'a> {
 
 impl<'a> EdgeStyle for DecompositionWindowsStyle<'a> {
     fn properties(&mut self, index: u32) -> Option<serde_json::Map<String, serde_json::Value>> {
-        use serde_json::{Number, Value};
-
         let mut map = serde_json::map::Map::new();
 
         let color = if let Some(non_opt_subpath) = &self.splitting.non_opt_subpaths {
@@ -252,16 +284,7 @@ impl<'a> EdgeStyle for DecompositionWindowsStyle<'a> {
         };
 
         map.insert("stroke".to_owned(), Value::String(color));
-
-        map.insert(
-            "stroke-opacity".to_owned(),
-            Value::Number(Number::from_f64(0.7).unwrap()),
-        );
-
-        map.insert(
-            "stroke-width".to_owned(),
-            Value::Number(Number::from_f64(5.0).unwrap()),
-        );
+        add_line_properties(&mut map);
 
         Some(map)
     }
@@ -279,13 +302,7 @@ impl<'a> PreferenceVis<'a> {
 
 impl<'a> EdgeStyle for PreferenceVis<'a> {
     fn properties(&mut self, index: u32) -> Option<serde_json::Map<String, serde_json::Value>> {
-        use serde_json::{Number, Value};
-
-        let colors = [
-            // "#e41a1c", "#377eb8", "#4daf4a", "#984ea3", "#ff7f00", "#ffff33", "#a65628", "#f781bf",
-            // "#999999",
-            "#a6611a", "#dfc27d", "#984ea3", "#80cdc1", "#018571",
-        ];
+        let colors = ["#a6611a", "#dfc27d", "#984ea3", "#80cdc1", "#018571"];
 
         let index = match self.splitting.cuts.binary_search(&index) {
             Ok(i) => i,
@@ -296,15 +313,8 @@ impl<'a> EdgeStyle for PreferenceVis<'a> {
 
         map.insert("stroke".to_owned(), Value::String(colors[index].to_owned()));
 
-        map.insert(
-            "stroke-opacity".to_owned(),
-            Value::Number(Number::from_f64(0.7).unwrap()),
-        );
+        add_line_properties(&mut map);
 
-        map.insert(
-            "stroke-width".to_owned(),
-            Value::Number(Number::from_f64(5.0).unwrap()),
-        );
         map.insert(
             "preference".to_owned(),
             Value::String(format!("{:?}", self.splitting.preferences[index])),
@@ -410,4 +420,24 @@ fn make_break_marker(
     } else {
         None
     }
+}
+
+fn load_graph(results: &Results) -> MyResult<GraphData> {
+    let graph_file = match results {
+        Results::Representative(r) => &r.graph_file,
+        Results::Splitting(r) => &r.graph_file,
+    };
+    parse_minimal_graph_file(&graph_file)
+}
+
+fn add_line_properties(map: &mut serde_json::map::Map<String, Value>) {
+    map.insert(
+        "stroke-opacity".to_owned(),
+        Value::Number(Number::from_f64(0.7).unwrap()),
+    );
+
+    map.insert(
+        "stroke-width".to_owned(),
+        Value::Number(Number::from_f64(5.0).unwrap()),
+    );
 }
