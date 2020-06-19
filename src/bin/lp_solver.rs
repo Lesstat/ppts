@@ -106,7 +106,7 @@ impl Lp {
             glp_init_smcp(&mut params);
             params.presolve = GLP_ON;
             params.msg_lev = GLP_MSG_OFF;
-            params.meth = GLP_DUALP;
+            // params.meth = GLP_DUALP;
 
             // let filename = CString::new(format!("/tmp/lps/my-{}.lp", self.counter)).unwrap();
             // let file_stat = glp_write_lp(self.lp, std::ptr::null(), filename.as_ptr());
