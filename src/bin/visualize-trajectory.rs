@@ -132,17 +132,18 @@ fn main() -> MyResult<()> {
     let feature_collection = match style {
         Style::Preferences => visualize_trajectories(
             &trajectory,
+            &stats.splitting().removed_self_loop_indices,
             &mut PreferenceVis::new(stats.splitting()),
             &geojson_map,
         ),
-        Style::TrajectoryOnly { color } => {
-            visualize_trajectories(&trajectory, &mut OneColor(color), &geojson_map)
-        }
+
+        Style::TrajectoryOnly { color } => visualize_trajectories(&trajectory,&[], &mut OneColor(color), &geojson_map),
         Style::Windows {
             trajectory_color,
             nos_color,
         } => visualize_trajectories(
             &trajectory,
+            &stats.splitting().removed_self_loop_indices,
             &mut DecompositionWindowsStyle::new(stats.splitting(), trajectory_color, nos_color),
             &geojson_map,
         ),
@@ -179,13 +180,14 @@ fn load_results(style: &Style, path: PathBuf) -> Result<Results, Box<dyn std::er
 }
 
 trait EdgeStyle {
-    fn properties(&mut self) -> Option<serde_json::map::Map<String, serde_json::Value>>;
+    fn properties(&mut self, index: u32)
+        -> Option<serde_json::map::Map<String, serde_json::Value>>;
 }
 
 struct OneColor(String);
 
 impl EdgeStyle for OneColor {
-    fn properties(&mut self) -> Option<serde_json::Map<String, serde_json::Value>> {
+    fn properties(&mut self, _: u32) -> Option<serde_json::Map<String, serde_json::Value>> {
         use serde_json::{Number, Value};
 
         let mut map = serde_json::map::Map::new();
@@ -210,7 +212,6 @@ struct DecompositionWindowsStyle<'a> {
     splitting: &'a SplittingStatistics,
     traj_color: String,
     nos_color: String,
-    path_counter: u32,
 }
 
 impl<'a> DecompositionWindowsStyle<'a> {
@@ -223,23 +224,13 @@ impl<'a> DecompositionWindowsStyle<'a> {
             splitting,
             traj_color,
             nos_color,
-            path_counter: 0,
         }
     }
 }
 
 impl<'a> EdgeStyle for DecompositionWindowsStyle<'a> {
-    fn properties(&mut self) -> Option<serde_json::Map<String, serde_json::Value>> {
+    fn properties(&mut self, index: u32) -> Option<serde_json::Map<String, serde_json::Value>> {
         use serde_json::{Number, Value};
-
-        if self
-            .splitting
-            .removed_self_loop_indices
-            .iter()
-            .any(|&loop_index| loop_index == self.path_counter)
-        {
-            self.path_counter -= 1;
-        }
 
         let mut map = serde_json::map::Map::new();
 
@@ -247,7 +238,7 @@ impl<'a> EdgeStyle for DecompositionWindowsStyle<'a> {
             if non_opt_subpath
                 .decomposition_windows
                 .iter()
-                .any(|w| w.0 <= self.path_counter && self.path_counter < w.1)
+                .any(|w| w.0 <= index && index < w.1)
             {
                 self.nos_color.clone()
             } else {
@@ -272,44 +263,30 @@ impl<'a> EdgeStyle for DecompositionWindowsStyle<'a> {
             Value::Number(Number::from_f64(5.0).unwrap()),
         );
 
-        self.path_counter += 1;
         Some(map)
     }
 }
 
 struct PreferenceVis<'a> {
     splitting: &'a SplittingStatistics,
-    path_counter: u32,
 }
 
 impl<'a> PreferenceVis<'a> {
     fn new(splitting: &'a SplittingStatistics) -> Self {
-        Self {
-            splitting,
-            path_counter: 0,
-        }
+        Self { splitting }
     }
 }
 
 impl<'a> EdgeStyle for PreferenceVis<'a> {
-    fn properties(&mut self) -> Option<serde_json::Map<String, serde_json::Value>> {
+    fn properties(&mut self, index: u32) -> Option<serde_json::Map<String, serde_json::Value>> {
         use serde_json::{Number, Value};
-
-        if self
-            .splitting
-            .removed_self_loop_indices
-            .iter()
-            .any(|&loop_index| loop_index == self.path_counter)
-        {
-            self.path_counter -= 1;
-        }
 
         let colors = [
             "#e41a1c", "#377eb8", "#4daf4a", "#984ea3", "#ff7f00", "#ffff33", "#a65628", "#f781bf",
             "#999999",
         ];
 
-        let index = match self.splitting.cuts.binary_search(&self.path_counter) {
+        let index = match self.splitting.cuts.binary_search(&index) {
             Ok(i) => i,
             Err(i) => i,
         } % colors.len();
@@ -332,13 +309,13 @@ impl<'a> EdgeStyle for PreferenceVis<'a> {
             Value::String(format!("{:?}", self.splitting.preferences[index])),
         );
 
-        self.path_counter += 1;
         Some(map)
     }
 }
 
 fn visualize_trajectories(
     trajectory: &Trajectory,
+    removed_self_loops: &[u32],
     style: &mut dyn EdgeStyle,
     geojson_map: &HashMap<i64, Geometry>,
 ) -> FeatureCollection {
@@ -350,20 +327,21 @@ fn visualize_trajectories(
 
     let mut features: Vec<Feature> = Vec::new();
     for (i, geom) in line_strings.into_iter().enumerate() {
-        // TODO fix offset problem caused by removed self loops
-        if i > 0 && trajectory.trip_id.iter().any(|id| id.1 == i as u32) {
-            let break_marker_pos = match &geom.value {
-                geojson::Value::LineString(line) => &line[0],
-                _ => panic!("edge is not a linestring I don't know what to do"),
-            };
-            let break_marker = make_marker(break_marker_pos.to_vec(), "#FBFF45", "b");
-            features.push(break_marker);
+        let self_loop_count = removed_self_loops
+            .iter()
+            .take_while(|l| **l <= i as u32)
+            .count();
+        let i = (i - self_loop_count) as u32;
+
+        if let Some(marker) = make_break_marker(&trajectory.trip_id, i, &geom) {
+            features.push(marker);
         }
+
         features.push(Feature {
             id: None,
             bbox: None,
             foreign_members: None,
-            properties: style.properties(),
+            properties: style.properties(i as u32),
             geometry: Some(geom),
         })
     }
@@ -413,5 +391,22 @@ fn make_marker(pos: Vec<f64>, color: &str, symbol: &str) -> Feature {
         id: None,
         properties: Some(map),
         foreign_members: None,
+    }
+}
+
+fn make_break_marker(
+    trip_id: &[(Option<u32>, u32)],
+    index: u32,
+    geom: &Geometry,
+) -> Option<Feature> {
+    if index > 0 && trip_id.iter().any(|id| id.1 == index) {
+        let break_marker_pos = match &geom.value {
+            geojson::Value::LineString(line) => &line[0],
+            _ => panic!("edge is not a linestring I don't know what to do"),
+        };
+        let break_marker = make_marker(break_marker_pos.to_vec(), "#FBFF45", "b");
+        Some(break_marker)
+    } else {
+        None
     }
 }
