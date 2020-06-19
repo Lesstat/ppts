@@ -27,7 +27,7 @@ impl<'a, 'b> PreferenceEstimator<'a, 'b> {
 
         let mut prev_alphas: Vec<Preference> = Vec::new();
         let mut alpha = [1.0 / EDGE_COST_DIMENSION as f64; EDGE_COST_DIMENSION];
-        let accuracy = 0.00001;
+        let accuracy = 0.000005;
         prev_alphas.push(alpha);
         loop {
             let result = self
