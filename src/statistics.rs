@@ -22,7 +22,7 @@ pub struct SplittingStatistics {
 #[derive(Serialize, Deserialize, Default)]
 pub struct RepresentativeAlphaResult {
     pub trip_id: Vec<(Option<u32>, u32)>,
-    vehicle_id: i64,
+    pub vehicle_id: i64,
     trajectory_length: usize,
     pub removed_self_loop_indices: MyVec<u32>,
     pub preference: Preference,
