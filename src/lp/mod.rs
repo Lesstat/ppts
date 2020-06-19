@@ -51,47 +51,35 @@ impl<'a, 'b> PreferenceEstimator<'a, 'b> {
             if &path.edges[source_idx..target_idx] == result.edges.as_slice() {
                 // Catch case paths are equal, but have slightly different costs (precision issue)
                 //DEBUG
-                //println!("Some: same path, total cost dif: {}", total_cost_dif);
-                //println!("");
+                // println!(
+                //     "Some: same path, total cost dif: {}",
+                //     total_cost_dif + accuracy
+                // );
                 //DEBUG END
                 return Ok(Some(alpha));
             } else if total_cost_dif + accuracy >= 0.0 {
-                // println!(
-                //     "Shouldn't happen: result: {:?}; user: {:?}",
-                //     result.user_split.get_total_cost(),
-                //     costs_by_alpha(costs, alpha)
-                // );
-                // dbg!(&costs, &result.total_dimension_costs, &alpha);
                 let res = Some(alpha);
                 //DEBUG
-                /*let dif =
-                    costs_by_alpha(&result.total_dimension_costs, &alpha) - costs_by_alpha(&costs, &alpha);
-                println!("Some: dif {}", dif);
-                println!("");*/
+                // println!("Some: dif {}", total_cost_dif);
                 //DEBUG END
                 return Ok(res);
             }
 
             self.lp.add_constraint(&cost_dif)?;
             //DEBUG
-            /*let dif =
-                    costs_by_alpha(&result.total_dimension_costs, &alpha) - costs_by_alpha(&costs, &alpha);
-            println!("add constraint: {:?}", cost_dif);
-            println!("dif: {:?}", dif);*/
+            // println!("add constraint: {:?}", cost_dif);
             //DEBUG END
             match self.lp.solve()? {
                 Some((pref, delta)) => {
                     if delta + accuracy < 0.0 {
                         //DEBUG
-                        //println!("None: delta = {}, dif = {}", delta, dif);
-                        //println!("");
+                        // println!("None: delta = {}, dif = {}", delta, total_cost_dif);
                         //DEBUG END
                         return Ok(None);
                     }
                     if prev_alphas.iter().any(|a| a == &pref) {
                         //DEBUG
-                        //println!("None: repeated alpha");
-                        //println!("");
+                        // println!("None: repeated alpha, dif ={}", total_cost_dif);
                         //DEBUG END
                         return Ok(None);
                     }
@@ -101,7 +89,7 @@ impl<'a, 'b> PreferenceEstimator<'a, 'b> {
 
                 None => {
                     //DEBUG
-                    //println!("None: infeasible");
+                    // println!("None: infeasible");
                     //DEBUG END
                     return Ok(None);
                 }

@@ -18,17 +18,19 @@ const GLP_FX: c_int = 5; // fixed variable
 const GLP_ON: c_int = 1; // enable something
 const GLP_OFF: c_int = 0; // disable something
 const GLP_MSG_OFF: c_int = 0; // no output
-const GLP_DUALP: c_int = 2; // use dual; if it fails, use primal
 const GLP_OPT: c_int = 5; // solution is optimal
 const GLP_FEAS: c_int = 2; // solution is feasible
+
+// const GLP_DUALP: c_int = 2; // use dual; if it fails, use primal
 
 struct Lp {
     lp: *mut glp_prob,
     delta_col: c_int,
+    counter: usize,
 }
 
 impl Lp {
-    fn new() -> Lp {
+    fn new(counter: usize) -> Lp {
         let (lp, delta_col) = unsafe {
             let lp = glp_create_prob();
             glp_set_obj_dir(lp, GLP_MAX);
@@ -36,7 +38,11 @@ impl Lp {
 
             (lp, delta_col)
         };
-        let mut lp = Self { lp, delta_col };
+        let mut lp = Self {
+            lp,
+            delta_col,
+            counter,
+        };
         unsafe {
             lp.add_sum_of_alpha_eq_one();
         }
@@ -158,14 +164,14 @@ fn main() -> Result<(), Box<dyn Error>> {
     let mut writer = BufWriter::new(stdout);
 
     let mut control_byte = [0u8; 1];
-    let mut lp = Lp::new();
+    let mut lp = Lp::new(0);
     loop {
         if reader.read_exact(&mut control_byte).is_err() {
             return Ok(());
         }
 
         match control_byte[0] {
-            0 => lp = Lp::new(),
+            0 => lp = Lp::new(lp.counter),
             1 => {
                 reader.read_exact(&mut buffer)?;
 

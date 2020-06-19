@@ -196,7 +196,7 @@ impl EdgeStyle for OneColor {
 
         map.insert(
             "stroke-opacity".to_owned(),
-            Value::Number(Number::from_f64(0.5).unwrap()),
+            Value::Number(Number::from_f64(0.7).unwrap()),
         );
 
         map.insert(
@@ -255,7 +255,7 @@ impl<'a> EdgeStyle for DecompositionWindowsStyle<'a> {
 
         map.insert(
             "stroke-opacity".to_owned(),
-            Value::Number(Number::from_f64(0.5).unwrap()),
+            Value::Number(Number::from_f64(0.7).unwrap()),
         );
 
         map.insert(
@@ -282,8 +282,9 @@ impl<'a> EdgeStyle for PreferenceVis<'a> {
         use serde_json::{Number, Value};
 
         let colors = [
-            "#e41a1c", "#377eb8", "#4daf4a", "#984ea3", "#ff7f00", "#ffff33", "#a65628", "#f781bf",
-            "#999999",
+            // "#e41a1c", "#377eb8", "#4daf4a", "#984ea3", "#ff7f00", "#ffff33", "#a65628", "#f781bf",
+            // "#999999",
+            "#a6611a", "#dfc27d", "#984ea3", "#80cdc1", "#018571",
         ];
 
         let index = match self.splitting.cuts.binary_search(&index) {
@@ -297,7 +298,7 @@ impl<'a> EdgeStyle for PreferenceVis<'a> {
 
         map.insert(
             "stroke-opacity".to_owned(),
-            Value::Number(Number::from_f64(0.5).unwrap()),
+            Value::Number(Number::from_f64(0.7).unwrap()),
         );
 
         map.insert(
