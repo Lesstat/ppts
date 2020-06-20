@@ -3,7 +3,8 @@ use preference_splitting::graph::{
     parse_minimal_graph_file
 };
 use preference_splitting::{
-    helpers::costs_by_alpha
+    helpers::costs_by_alpha,
+    EDGE_COST_DIMENSION
 };
 use rand::thread_rng;
 
@@ -103,6 +104,18 @@ fn main() -> MyResult<()> {
                 let accuracy = 0.00001;
                 for (p, s) in chunk {
                     let ids = [*p.nodes.first().unwrap(), *p.nodes.last().unwrap()];
+                    //travel time only
+                    let mut tt_preference = [0.0; EDGE_COST_DIMENSION];
+                    tt_preference[0] = 1.0;
+                    let tt_path = graph
+                            .find_shortest_path(&mut d, 0, &ids, tt_preference)
+                            .expect("there must be a path");
+                    let aggregated_tt_costs = costs_by_alpha(&tt_path.total_dimension_costs, &tt_preference);
+                    let aggregated_real_costs = costs_by_alpha(&s.trajectory_cost, &tt_preference);
+                    let aggregated_cost_diff_by_tt = aggregated_real_costs - aggregated_tt_costs;
+                    s.aggregated_cost_diff_by_tt = Some(aggregated_cost_diff_by_tt);
+                    s.tt_costs = Some(tt_path.total_dimension_costs);
+                    //random preferences
                     let mut better = 0;
                     let mut aggregated_cost_diffs_by_rng = Vec::new();
                     let mut random_preferences = Vec::new();

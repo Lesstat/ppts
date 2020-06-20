@@ -8,7 +8,7 @@ use preference_splitting::graphml::GraphData;
 
 use preference_splitting::trajectories::{check_trajectory, read_trajectories};
 use preference_splitting::{
-    helpers::randomized_preference, statistics::read_representative_results, MyError, MyResult,
+    helpers::randomized_preference, statistics::read_representative_results, MyError, MyResult, EDGE_COST_DIMENSION
 };
 
 use std::convert::TryInto;
@@ -100,6 +100,15 @@ fn main() -> MyResult<()> {
                 let accuracy = 0.00001;
                 for (p, s) in chunk {
                     let ids = [*p.nodes.first().unwrap(), *p.nodes.last().unwrap()];
+                    //travel time only
+                    let mut tt_preference = [0.0; EDGE_COST_DIMENSION];
+                    tt_preference[0] = 1.0;
+                    let tt_path = graph
+                            .find_shortest_path(&mut d, 0, &ids, tt_preference)
+                            .expect("there must be a path");
+                    s.tt_costs = Some(tt_path.total_dimension_costs);
+                    s.overlap_by_tt = Some(overlap(p, &tt_path));
+                    //random preferences
                     let mut better = 0;
                     let mut overlaps_by_rng = Vec::new();
                     for _ in 0..nr_of_random_preferences {

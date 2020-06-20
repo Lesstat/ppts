@@ -36,15 +36,21 @@ pub struct RepresentativeAlphaResult {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub overlaps_by_rng: Option<Vec<f64>>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub overlap_by_tt: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub better_aggregated_cost_diff_by_rng: Option<f64>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub aggregated_cost_diffs_by_rng: Option<Vec<f64>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub aggregated_cost_diff_by_tt: Option<f64>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub wrong_turns: Option<Vec<usize>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub nr_of_wrong_turns: Option<usize>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub nr_of_wrong_turns_by_rng: Option<Vec<usize>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub nr_of_wrong_turns_by_tt: Option<usize>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub single_preference_decomposition_longest_optimal_subpath: Option<Vec<usize>>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -55,6 +61,16 @@ pub struct RepresentativeAlphaResult {
     pub random_preferences: Option<Vec<Preference>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub random_costs: Option<Vec<Costs>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub alpha_costs: Option<Vec<Costs>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub trajectory_costs: Option<Vec<Costs>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tt_costs: Option<Costs>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub aggregated_cost_diffs: Option<Vec<f64>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub overlaps: Option<Vec<f64>>,
 }
 
 impl RepresentativeAlphaResult {

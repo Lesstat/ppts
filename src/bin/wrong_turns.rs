@@ -4,7 +4,7 @@ use preference_splitting::graph::{parse_minimal_graph_file, path::Path, Graph};
 use preference_splitting::graphml::GraphData;
 use preference_splitting::helpers::Preference;
 use preference_splitting::trajectories::{check_trajectory, read_trajectories};
-use preference_splitting::{statistics::read_representative_results, MyError, MyResult, helpers::randomized_preference,};
+use preference_splitting::{statistics::read_representative_results, MyError, MyResult, helpers::randomized_preference,EDGE_COST_DIMENSION};
 
 use rand::thread_rng;
 
@@ -93,6 +93,10 @@ fn main() -> MyResult<()> {
                 let mut counter = 0;
                 let mut rng = thread_rng();
                 for (p, s) in chunk {
+                    //travel time only
+                    let mut tt_preference = [0.0; EDGE_COST_DIMENSION];
+                    tt_preference[0] = 1.0;
+                    s.nr_of_wrong_turns_by_tt = Some(run_experiment(&graph, &mut d, p, &tt_preference).len());
                     if compare_with_rng == 0{
                         s.wrong_turns = Some(run_experiment(&graph, &mut d, p, &s.preference));
                     }
