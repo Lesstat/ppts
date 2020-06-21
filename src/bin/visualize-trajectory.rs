@@ -338,15 +338,15 @@ fn visualize_trajectories(
 
     let mut features: Vec<Feature> = Vec::new();
     for (i, geom) in line_strings.into_iter().enumerate() {
+        if let Some(marker) = make_break_marker(&trajectory.trip_id, i, &geom) {
+            features.push(marker);
+        }
+
         let self_loop_count = removed_self_loops
             .iter()
             .take_while(|l| **l <= i as u32)
             .count();
         let i = (i - self_loop_count) as u32;
-
-        if let Some(marker) = make_break_marker(&trajectory.trip_id, i, &geom) {
-            features.push(marker);
-        }
 
         features.push(Feature {
             id: None,
