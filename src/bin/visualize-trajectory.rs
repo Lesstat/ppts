@@ -227,6 +227,26 @@ fn load_results(style: &Style, path: PathBuf) -> Result<Results, Box<dyn std::er
 trait EdgeStyle {
     fn properties(&mut self, index: u32)
         -> Option<serde_json::map::Map<String, serde_json::Value>>;
+
+    fn add_marker(
+        &mut self,
+        trajectory: &Trajectory,
+        t_index: u32,
+        _p_index: u32,
+        geom: &Geometry,
+    ) -> Option<Feature> {
+        let trip_id = &trajectory.trip_id;
+        if t_index > 0 && trip_id.iter().any(|id| id.1 == t_index) {
+            let break_marker_pos = match &geom.value {
+                geojson::Value::LineString(line) => &line[0],
+                _ => panic!("edge is not a linestring I don't know what to do"),
+            };
+            let break_marker = make_marker(break_marker_pos.to_vec(), "#FBFF45", "b");
+            Some(break_marker)
+        } else {
+            None
+        }
+    }
 }
 
 struct OneColor(String);
@@ -304,8 +324,9 @@ impl<'a> EdgeStyle for PreferenceVis<'a> {
     fn properties(&mut self, index: u32) -> Option<serde_json::Map<String, serde_json::Value>> {
         let colors = ["#a6611a", "#dfc27d", "#984ea3", "#80cdc1", "#018571"];
 
-        let index = match self.splitting.cuts.binary_search(&index) {
-            Ok(i) => i,
+        let result = self.splitting.cuts.binary_search(&index);
+        let index = match result {
+            Ok(i) => i + 1,
             Err(i) => i,
         } % colors.len();
 
@@ -321,6 +342,39 @@ impl<'a> EdgeStyle for PreferenceVis<'a> {
         );
 
         Some(map)
+    }
+
+    fn add_marker(
+        &mut self,
+        trajectory: &Trajectory,
+        t_index: u32,
+        p_index: u32,
+        geom: &Geometry,
+    ) -> Option<Feature> {
+        let trip_id = &trajectory.trip_id;
+        let mut make_break_marker = false;
+        let mut make_decomp_marker = false;
+        if t_index > 0 && trip_id.iter().any(|id| id.1 == t_index) {
+            make_break_marker = true;
+        }
+
+        if let Ok(_) = self.splitting.cuts.binary_search(&p_index) {
+            make_decomp_marker = true;
+        }
+
+        let marker_pos = match &geom.value {
+            geojson::Value::LineString(line) => &line[0],
+            _ => panic!("edge is not a linestring I don't know what to do"),
+        }
+        .to_vec();
+
+        dbg!(t_index, p_index);
+        match dbg!(make_break_marker, make_decomp_marker) {
+            (true, true) => Some(make_marker(marker_pos, "#000", "b")),
+            (true, false) => Some(make_marker(marker_pos, "#FBFF45", "b")),
+            (false, true) => Some(make_marker(marker_pos, "#000", "d")),
+            _ => None,
+        }
     }
 }
 
@@ -338,15 +392,14 @@ fn visualize_trajectories(
 
     let mut features: Vec<Feature> = Vec::new();
     for (i, geom) in line_strings.into_iter().enumerate() {
-        if let Some(marker) = make_break_marker(&trajectory.trip_id, i, &geom) {
-            features.push(marker);
-        }
-
         let self_loop_count = removed_self_loops
             .iter()
             .take_while(|l| **l <= i as u32)
             .count();
-        let i = (i - self_loop_count) as u32;
+        let path_index = (i - self_loop_count) as u32;
+        if let Some(marker) = style.add_marker(&trajectory, i as u32, path_index, &geom) {
+            features.push(marker);
+        }
 
         features.push(Feature {
             id: None,
@@ -362,14 +415,14 @@ fn visualize_trajectories(
         _ => panic!("edge is not a linestring I don't know what to do"),
     };
 
-    let start_marker = make_marker(start_marker_pos.to_vec(), "#000", "s");
+    let start_marker = make_marker(start_marker_pos.to_vec(), "#00f", "s");
 
     let end_marker_pos = match &features.last().unwrap().geometry.as_ref().unwrap().value {
         geojson::Value::LineString(line) => &line[0],
         _ => panic!("edge is not a linestring I don't know what to do"),
     };
 
-    let end_marker = make_marker(end_marker_pos.to_vec(), "#000", "t");
+    let end_marker = make_marker(end_marker_pos.to_vec(), "#00f", "t");
 
     features.insert(0, start_marker);
     features.push(end_marker);
@@ -402,23 +455,6 @@ fn make_marker(pos: Vec<f64>, color: &str, symbol: &str) -> Feature {
         id: None,
         properties: Some(map),
         foreign_members: None,
-    }
-}
-
-fn make_break_marker(
-    trip_id: &[(Option<u32>, u32)],
-    index: u32,
-    geom: &Geometry,
-) -> Option<Feature> {
-    if index > 0 && trip_id.iter().any(|id| id.1 == index) {
-        let break_marker_pos = match &geom.value {
-            geojson::Value::LineString(line) => &line[0],
-            _ => panic!("edge is not a linestring I don't know what to do"),
-        };
-        let break_marker = make_marker(break_marker_pos.to_vec(), "#FBFF45", "b");
-        Some(break_marker)
-    } else {
-        None
     }
 }
 
