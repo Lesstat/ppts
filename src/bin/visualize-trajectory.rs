@@ -236,7 +236,7 @@ trait EdgeStyle {
         geom: &Geometry,
     ) -> Option<Feature> {
         let trip_id = &trajectory.trip_id;
-        if t_index > 0 && trip_id.iter().any(|id| id.1 == t_index) {
+        if t_index > 0 && trip_id.iter().any(|id| id.0.is_some() && id.1 == t_index) {
             let break_marker_pos = match &geom.value {
                 geojson::Value::LineString(line) => &line[0],
                 _ => panic!("edge is not a linestring I don't know what to do"),
@@ -354,7 +354,7 @@ impl<'a> EdgeStyle for PreferenceVis<'a> {
         let trip_id = &trajectory.trip_id;
         let mut make_break_marker = false;
         let mut make_decomp_marker = false;
-        if t_index > 0 && trip_id.iter().any(|id| id.1 == t_index) {
+        if t_index > 0 && trip_id.iter().any(|id| id.0.is_some() && id.1 == t_index) {
             make_break_marker = true;
         }
 
