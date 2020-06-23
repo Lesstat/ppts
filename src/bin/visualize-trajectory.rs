@@ -371,8 +371,8 @@ impl<'a> EdgeStyle for PreferenceVis<'a> {
         dbg!(t_index, p_index);
         match dbg!(make_break_marker, make_decomp_marker) {
             (true, true) => Some(make_marker(marker_pos, "#000", "b")),
-            (true, false) => Some(make_marker(marker_pos, "#FBFF45", "b")),
-            (false, true) => Some(make_marker(marker_pos, "#000", "d")),
+            (true, false) => Some(make_marker(marker_pos, "#FBFF45", "s")),
+            (false, true) => Some(make_marker(marker_pos, "#000", "s")),
             _ => None,
         }
     }
@@ -418,7 +418,7 @@ fn visualize_trajectories(
     let start_marker = make_marker(start_marker_pos.to_vec(), "#00f", "s");
 
     let end_marker_pos = match &features.last().unwrap().geometry.as_ref().unwrap().value {
-        geojson::Value::LineString(line) => &line[0],
+        geojson::Value::LineString(line) => line.last().unwrap(),
         _ => panic!("edge is not a linestring I don't know what to do"),
     };
 
