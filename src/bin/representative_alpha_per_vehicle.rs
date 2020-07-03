@@ -71,7 +71,7 @@ fn main() -> MyResult<()> {
     let mut statistics : Vec<RepresentativeAlphaResult> = Vec::new();
     for _ in 0..num_vehicles {
         paths_per_vehicle_id.push(Vec::new());
-        preference_per_vehicle.push([0.0; 4]);
+        preference_per_vehicle.push([0.0; EDGE_COST_DIMENSION]);
     }
     for t in &trajectories {
         let index = (t.vehicle_id - min_vehicle_id) as usize;
