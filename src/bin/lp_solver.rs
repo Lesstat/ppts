@@ -114,12 +114,18 @@ impl Lp {
             params.msg_lev = GLP_MSG_OFF;
             // params.meth = GLP_DUALP;
 
-            // let filename = CString::new(format!("/tmp/lps/my-{}.lp", self.counter)).unwrap();
-            // let file_stat = glp_write_lp(self.lp, std::ptr::null(), filename.as_ptr());
-            // if file_stat != 0 {
-            //     panic!("could not write file");
-            // }
-            // self.counter += 1;
+            #[cfg(feature = "debug")]
+            {
+                let filename = CString::new(format!("/tmp/lps/my-{}.lp", self.counter)).unwrap();
+                let file_stat = glp_write_lp(self.lp, std::ptr::null(), filename.as_ptr());
+                if file_stat != 0 {
+                    panic!(
+                        "could not write file into {}",
+                        filename.into_string().unwrap()
+                    );
+                }
+            }
+            self.counter += 1;
 
             let status = glp_simplex(self.lp, &params);
             if status == 0 {

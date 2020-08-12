@@ -42,6 +42,12 @@ impl<'a, 'b> TrajectoryAnalysis<'a, 'b> {
         let mut alphas = MyVec::new();
         let mut start = 0u32;
 
+        #[cfg(feature = "debug")]
+        println!(
+            "============find preference for path: {:?}==============",
+            path.id
+        );
+
         while start < path_length - 1 {
             let mut low = start;
             let mut high = path_length;
@@ -53,13 +59,23 @@ impl<'a, 'b> TrajectoryAnalysis<'a, 'b> {
                     return Ok(());
                 }
                 let mut estimator = PreferenceEstimator::new(self.graph, self.lp);
+
+                #[cfg(feature = "debug")]
+                println!("trying to find pref from {} to {}", start, m);
                 let pref = estimator.calc_preference(self.dijkstra, &path, start, m)?;
                 if pref.is_some() {
                     low = m + 1;
                     best_pref = pref;
                     best_cut = m;
+                    #[cfg(feature = "debug")]
+                    println!(
+                        "--------------- found pref: {:?} ---------------",
+                        pref.unwrap()
+                    );
                 } else {
                     high = m;
+                    #[cfg(feature = "debug")]
+                    println!("--------------- no pref found ---------------");
                 }
                 if low >= high {
                     alphas.push(best_pref.unwrap());
@@ -113,6 +129,9 @@ impl<'a, 'b> TrajectoryAnalysis<'a, 'b> {
     }
 
     pub fn find_all_non_optimal_segments(&mut self, path: &Path) -> MyResult<Vec<SubPath>> {
+        #[cfg(feature = "debug")]
+        println!("find all non optimal path segments for {:?}", path.id);
+
         let mut subpaths = Vec::new();
         let mut start = 0 as u32;
         let path_length = path.nodes.len() as u32;
@@ -184,47 +203,41 @@ impl<'a, 'b> TrajectoryAnalysis<'a, 'b> {
         Ok(subpaths)
     }
 
-    pub fn find_decomposition_windows(&mut self, path: &mut Path) -> MyResult<Vec<SubPath>> {
+    pub fn decomposition_sanity_check(&mut self, path: &mut Path) -> MyResult<bool> {
+        #[cfg(feature = "debug")]
+        println!("============ sanity checking {:?} ============", path.id);
+
         if path.algo_split.is_none() {
-            self.find_preference(path)?;
+            return Ok(false);
         }
 
         let mut d = Dijkstra::new(self.graph);
         let mut esti = PreferenceEstimator::new(&self.graph, self.lp);
 
-        let mut res = Vec::new();
         if let Some(split) = &path.algo_split {
-            let mut prev_cut = 0;
-            for consecutive_cuts in split.cuts.windows(2) {
-                let current_cut = consecutive_cuts[0];
-                let next_cut = consecutive_cuts[1];
+            for consecutive_cuts in split.cuts.windows(3) {
+                let first_cut = consecutive_cuts[0];
+                let middle_cut = consecutive_cuts[1];
+                let third_cut = consecutive_cuts[2];
 
-                let mut s = current_cut - 1;
-                while let Some(pref) = esti.calc_preference(&mut d, path, s, next_cut)? {
-                    if s <= prev_cut {
-                        dbg!(&split.cuts);
-                        dbg!(s);
-                        dbg!(prev_cut);
-                        dbg!(current_cut);
-                        dbg!(next_cut);
-                        dbg!(pref);
-                        panic!(
-                            "This indicates that the cut at {} is not necessary in trajectory {:?}",
-                            current_cut, path.id
-                        );
-                    }
+                #[cfg(feature = "debug")]
+                println!("trying from {} to {}", first_cut, third_cut);
 
-                    s -= 1;
+                if let Some(pref) = esti.calc_preference(&mut d, path, first_cut, third_cut)? {
+                    dbg!(&split.cuts);
+                    dbg!(first_cut);
+                    dbg!(middle_cut);
+                    dbg!(third_cut);
+                    dbg!(pref);
+                    panic!(
+                        "This indicates that the cut at {} is not necessary in trajectory {:?}",
+                        middle_cut, path.id
+                    );
                 }
-                res.push(SubPath {
-                    start_index: s,
-                    end_index: current_cut + 1,
-                });
-                prev_cut = current_cut;
             }
         }
 
-        Ok(res)
+        Ok(true)
     }
 
     pub fn get_single_preference_decomposition(
@@ -347,7 +360,7 @@ impl<'a, 'b> TrajectoryAnalysis<'a, 'b> {
                         panic!("subpath costs are wrong!")
                     }
                 }
-                //DEBUG END
+                //DEBUG
                 let diff = costs_by_alpha(&costs_subpath, &preference)
                     - costs_by_alpha(&optimal_path.total_dimension_costs, &preference);
                 if diff < accuracy {

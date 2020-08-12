@@ -63,14 +63,12 @@ fn run_experiment<'a, 'b>(
             )
         };
 
-        let start = Instant::now();
-        let decomposition_windows = ta.find_decomposition_windows(p)?;
-        let time = start.elapsed();
+        ta.decomposition_sanity_check(p)?;
+
         let subpaths = ta.find_all_non_optimal_segments(p)?;
 
         let non_opt_subpaths = NonOptSubPathsResult {
             non_opt_subpaths: to_statistics_format(&subpaths),
-            decomposition_windows: to_statistics_format(&decomposition_windows),
             runtime: time
                 .as_millis()
                 .try_into()

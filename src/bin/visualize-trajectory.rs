@@ -42,13 +42,6 @@ enum Style {
         #[structopt(default_value = "#000")]
         color: String,
     },
-    /// Visualize decomposition windows
-    Windows {
-        #[structopt(default_value = "#000")]
-        trajectory_color: String,
-        #[structopt(default_value = "#00f")]
-        nos_color: String,
-    },
     /// Visualize trajectory and its representative path
     ReprPath {
         #[structopt(default_value = "#000")]
@@ -145,15 +138,6 @@ fn main() -> MyResult<()> {
         Style::TrajectoryOnly { color } => {
             visualize_trajectories(&trajectory, &[], &mut OneColor(color), &geojson_map)
         }
-        Style::Windows {
-            trajectory_color,
-            nos_color,
-        } => visualize_trajectories(
-            &trajectory,
-            &stats.splitting().removed_self_loop_indices,
-            &mut DecompositionWindowsStyle::new(stats.splitting(), trajectory_color, nos_color),
-            &geojson_map,
-        ),
         Style::ReprPath {
             trajectory_color,
             representative_color,
@@ -256,54 +240,6 @@ impl EdgeStyle for OneColor {
         let mut map = serde_json::map::Map::new();
 
         map.insert("stroke".to_owned(), Value::String(self.0.clone()));
-        add_line_properties(&mut map);
-
-        Some(map)
-    }
-}
-
-struct DecompositionWindowsStyle<'a> {
-    splitting: &'a SplittingStatistics,
-    traj_color: String,
-    nos_color: String,
-}
-
-impl<'a> DecompositionWindowsStyle<'a> {
-    pub fn new(
-        splitting: &'a SplittingStatistics,
-        traj_color: String,
-        nos_color: String,
-    ) -> DecompositionWindowsStyle {
-        DecompositionWindowsStyle {
-            splitting,
-            traj_color,
-            nos_color,
-        }
-    }
-}
-
-impl<'a> EdgeStyle for DecompositionWindowsStyle<'a> {
-    fn properties(&mut self, index: u32) -> Option<serde_json::Map<String, serde_json::Value>> {
-        let mut map = serde_json::map::Map::new();
-
-        let color = if let Some(non_opt_subpath) = &self.splitting.non_opt_subpaths {
-            if non_opt_subpath
-                .decomposition_windows
-                .iter()
-                .any(|w| w.0 <= index && index < w.1)
-            {
-                self.nos_color.clone()
-            } else {
-                self.traj_color.clone()
-            }
-        } else {
-            panic!(
-                "Trip {:?} has no decomposition data",
-                self.splitting.trip_id
-            );
-        };
-
-        map.insert("stroke".to_owned(), Value::String(color));
         add_line_properties(&mut map);
 
         Some(map)

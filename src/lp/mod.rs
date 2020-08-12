@@ -50,37 +50,37 @@ impl<'a, 'b> PreferenceEstimator<'a, 'b> {
 
             if &path.edges[source_idx..target_idx] == result.edges.as_slice() {
                 // Catch case paths are equal, but have slightly different costs (precision issue)
-                //DEBUG
-                // println!(
-                //     "Some: same path, total cost dif: {}",
-                //     total_cost_dif + accuracy
-                // );
-                //DEBUG END
+                //
+                #[cfg(feature = "debug")]
+                println!("same path, dif: {}", total_cost_dif + accuracy);
+
                 return Ok(Some(alpha));
             } else if total_cost_dif + accuracy >= 0.0 {
                 let res = Some(alpha);
-                //DEBUG
-                // println!("Some: dif {}", total_cost_dif);
-                //DEBUG END
+
+                #[cfg(feature = "debug")]
+                println!("same costs, dif {}", total_cost_dif);
+
                 return Ok(res);
             }
 
             self.lp.add_constraint(&cost_dif)?;
-            //DEBUG
-            // println!("add constraint: {:?}", cost_dif);
-            //DEBUG END
+
+            #[cfg(feature = "debug")]
+            println!("add constraint: {:?}", cost_dif);
+
             match self.lp.solve()? {
                 Some((pref, delta)) => {
                     if delta + accuracy < 0.0 {
-                        //DEBUG
-                        // println!("None: delta = {}, dif = {}", delta, total_cost_dif);
-                        //DEBUG END
+                        #[cfg(feature = "debug")]
+                        println!("negative delta = {}, dif = {}", delta, total_cost_dif);
+
                         return Ok(None);
                     }
                     if prev_alphas.iter().any(|a| a == &pref) {
-                        //DEBUG
-                        // println!("None: repeated alpha, dif ={}", total_cost_dif);
-                        //DEBUG END
+                        #[cfg(feature = "debug")]
+                        println!("repeated alpha, dif ={}", total_cost_dif);
+
                         return Ok(None);
                     }
                     alpha = pref;
@@ -88,9 +88,9 @@ impl<'a, 'b> PreferenceEstimator<'a, 'b> {
                 }
 
                 None => {
-                    //DEBUG
-                    // println!("None: infeasible");
-                    //DEBUG END
+                    #[cfg(feature = "debug")]
+                    println!("infeasible");
+
                     return Ok(None);
                 }
             }
@@ -139,32 +139,32 @@ impl<'a, 'b> PreferenceEstimator<'a, 'b> {
                 self.lp.add_constraint(&cost_dif)?;
             }
             if sum_dif - accuracy <= 0.0 {
-                //DEBUG
-                //println!("Some: dif = {}", sum_dif);
-                //DEBUG END
+                #[cfg(feature = "debug")]
+                println!("Some: dif = {}", sum_dif);
+
                 return Ok(Some(alpha));
             }
             match self.lp.solve()? {
                 Some((pref, delta)) => {
                     if delta + accuracy < 0.0 {
-                        //DEBUG
-                        //println!("None: delta = {}, dif = {}", delta, sum_dif);
-                        //DEBUG END
+                        #[cfg(feature = "debug")]
+                        println!("None: delta = {}, dif = {}", delta, sum_dif);
+
                         return Ok(None);
                     }
                     if prev_alphas.iter().any(|a| a == &pref) {
-                        //DEBUG
-                        //println!("None: repeated alpha");
-                        //DEBUG END
+                        #[cfg(feature = "debug")]
+                        println!("None: repeated alpha");
+
                         return Ok(None);
                     }
                     alpha = pref;
                     prev_alphas.push(alpha);
                 }
                 None => {
-                    //DEBUG
-                    //println!("None: infeasible");
-                    //DEBUG END
+                    #[cfg(feature = "debug")]
+                    println!("None: infeasible");
+
                     return Ok(None);
                 }
             }
@@ -224,32 +224,32 @@ impl<'a, 'b> PreferenceEstimator<'a, 'b> {
                 constraints_by_path[i].push(cost_dif);
             }
             if sum_dif - accuracy <= 0.0 {
-                //DEBUG
-                //println!("Some: dif = {}", sum_dif);
-                //DEBUG END
+                #[cfg(feature = "debug")]
+                println!("Some: dif = {}", sum_dif);
+
                 return Ok((Some(alpha), constraints_by_path));
             }
             match self.lp.solve()? {
                 Some((pref, delta)) => {
                     if delta + accuracy < 0.0 {
-                        //DEBUG
-                        //println!("None: delta = {}, dif = {}", delta, sum_dif);
-                        //DEBUG END
+                        #[cfg(feature = "debug")]
+                        println!("None: delta = {}, dif = {}", delta, sum_dif);
+
                         return Ok((None, constraints_by_path));
                     }
                     if prev_alphas.iter().any(|a| a == &pref) {
-                        //DEBUG
-                        //println!("None: repeated alpha");
-                        //DEBUG END
+                        #[cfg(feature = "debug")]
+                        println!("None: repeated alpha");
+
                         return Ok((None, constraints_by_path));
                     }
                     alpha = pref;
                     prev_alphas.push(alpha);
                 }
                 None => {
-                    //DEBUG
-                    //println!("None: infeasible");
-                    //DEBUG END
+                    #[cfg(feature = "debug")]
+                    println!("None: infeasible");
+
                     return Ok((None, constraints_by_path));
                 }
             }

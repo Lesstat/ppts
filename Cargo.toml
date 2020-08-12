@@ -4,6 +4,10 @@ version = "0.1.0"
 authors = ["Patrick Singer", "Florian Barth"]
 edition = "2018"
 
+[features]
+default = []
+debug = []
+
 [dependencies]
 ordered-float = "1.0.2"
 roxmltree = "0.7.*"
