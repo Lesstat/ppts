@@ -138,6 +138,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .zip(statistics.into_iter())
         .collect();
 
+    let threads = threads.min(paths.len());
+    println!("using {} threads", threads);
+
     let items_per_thread = paths.len() / threads;
 
     #[allow(clippy::explicit_counter_loop)]

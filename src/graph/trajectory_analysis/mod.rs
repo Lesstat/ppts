@@ -130,7 +130,10 @@ impl<'a, 'b> TrajectoryAnalysis<'a, 'b> {
 
     pub fn find_all_non_optimal_segments(&mut self, path: &Path) -> MyResult<Vec<SubPath>> {
         #[cfg(feature = "debug")]
-        println!("find all non optimal path segments for {:?}", path.id);
+        println!(
+            "======== find all non optimal path segments for {:?} =========",
+            path.id
+        );
 
         let mut subpaths = Vec::new();
         let mut start = 0 as u32;
