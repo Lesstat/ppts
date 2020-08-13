@@ -443,11 +443,23 @@ impl LpProcess {
     }
 
     pub fn add_constraint(&mut self, costs: &Costs) -> MyResult<()> {
+        let accuracy = 0.000005;
+
+        let mut norm_costs = [0.0; EDGE_COST_DIMENSION];
+
+        costs.iter().zip(norm_costs.iter_mut()).for_each(|(c, n)| {
+            if *c < accuracy && *c > -accuracy {
+                *n = 0.0;
+            } else {
+                *n = *c;
+            }
+        });
+
         let child_stdin = self.lp.stdin.take().unwrap();
 
         let mut b = BufWriter::new(child_stdin);
 
-        let write_buffer: Vec<_> = costs
+        let write_buffer: Vec<_> = norm_costs
             .iter()
             .flat_map(|c| c.to_ne_bytes().iter().copied().collect::<Vec<_>>())
             .collect();
@@ -505,6 +517,26 @@ impl LpProcess {
             x => panic!(format!("Unknown control byte received on main side: {}", x)),
         }
     }
+}
+
+#[test]
+fn test_strange_lp_behavior() {
+    let mut lp = LpProcess::new().unwrap();
+    lp.add_constraint(&[-0.0638948999999998, -1.106574, 1.11022302462516e-16, 0.0])
+        .unwrap();
+
+    let (pref, delta) = lp.solve().unwrap().unwrap();
+    dbg!(delta);
+
+    // assert_eq!(pref, [0.0, 0.0, 0.0, 1.0]);
+
+    lp.add_constraint(&[0.9163051, 1.258436, 0.8960761, -1.0])
+        .unwrap();
+
+    let (pref, delta) = lp.solve().unwrap().unwrap();
+    dbg!(delta);
+
+    assert_ne!(pref, [0.0, 0.0, 0.0, 1.0]);
 }
 
 #[test]
