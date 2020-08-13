@@ -71,6 +71,9 @@ impl<'a, 'b> PreferenceEstimator<'a, 'b> {
 
             match self.lp.solve()? {
                 Some((pref, delta)) => {
+                    #[cfg(feature = "debug")]
+                    println!("found alpha: {:?}", pref);
+
                     if delta + accuracy < 0.0 {
                         #[cfg(feature = "debug")]
                         println!("negative delta = {}, dif = {}", delta, total_cost_dif);
