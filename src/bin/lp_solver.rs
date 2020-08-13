@@ -115,7 +115,7 @@ impl Lp {
             // params.meth = GLP_DUALP;
 
             #[cfg(feature = "debug")]
-            {
+            || -> () {
                 let filename = CString::new(format!("/tmp/lps/my-{}.lp", self.counter)).unwrap();
                 let file_stat = glp_write_lp(self.lp, std::ptr::null(), filename.as_ptr());
                 if file_stat != 0 {
@@ -124,7 +124,7 @@ impl Lp {
                         filename.into_string().unwrap()
                     );
                 }
-            }
+            }();
             self.counter += 1;
 
             let status = glp_simplex(self.lp, &params);
