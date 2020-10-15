@@ -1,4 +1,4 @@
-# Preference Splitting
+# Personalized Path Trajectory Segmentation
 
-Splitting trajectories into sub paths that are optimal for some
-preference in the personalized route planning problem.
+Segmenting trajectories into subtrajectories that are optimal for some
+preference in the personalized route planning model.

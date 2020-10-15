@@ -1,7 +1,7 @@
 [package]
-name = "preference-splitting"
+name = "ppts"
 version = "0.1.0"
-authors = ["Patrick Singer", "Florian Barth"]
+authors = ["Florian Barth", "Claudius Proissl", "Patrick Singer"]
 edition = "2018"
 
 [features]
